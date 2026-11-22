@@ -30,14 +30,18 @@ def build_pipeline(language: str = 'vi') -> Pipeline:
     """
     Khởi tạo scikit-learn Pipeline kết hợp trích xuất đặc trưng TF-IDF và thuật toán Multinomial Naive Bayes.
     Tối ưu hóa chuyên biệt cho văn bản tiếng Việt:
-      + TfidfVectorizer: ngram_range=(1, 2) bắt cụm từ ghép ('khuyến mãi', 'trúng thưởng', 'ngân hàng'),
-        token_pattern giữ nguyên ký tự tiếng Việt có dấu, sublinear_tf=True giảm nhiễu từ lặp.
-      + MultinomialNB: alpha=0.1 làm mịn tối ưu cho dữ liệu tiếng Việt.
+      + TfidfVectorizer: ngram_range=(1, 2), token_pattern bắt từ tiếng Việt >= 2 ký tự (loại bỏ số và ký tự đơn),
+        stop_words loại bỏ các artifact kỹ thuật như 'lt', 'gt', 'amp'.
+      + MultinomialNB: alpha=0.1, fit_prior=False (cân bằng xác suất tiên nghiệm tránh thiên vị class imbalance).
     """
+    pattern = r'(?u)\b[a-zA-ZàáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđĐ]{2,}\b'
+    stop_words = ['lt', 'gt', 'amp', 'fwiw', 'lor', 'pa', 'ill', 'da', 'ah']
+
     vectorizer = TfidfVectorizer(
         max_features=10000,
         ngram_range=(1, 2),
-        token_pattern=r'(?u)\b\w+\b',
+        token_pattern=pattern,
+        stop_words=stop_words,
         sublinear_tf=True,
         lowercase=True
     )

@@ -52,7 +52,8 @@ class TestClassifier(unittest.TestCase):
         self.assertIsInstance(tfidf, TfidfVectorizer)
         self.assertEqual(tfidf.max_features, 10000)
         self.assertEqual(tfidf.ngram_range, (1, 2))
-        self.assertEqual(tfidf.token_pattern, r'(?u)\b\w+\b')
+        pattern = r'(?u)\b[a-zA-ZàáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđĐ]{2,}\b'
+        self.assertEqual(tfidf.token_pattern, pattern)
         self.assertTrue(tfidf.sublinear_tf)
 
         self.assertIsInstance(nb, MultinomialNB)

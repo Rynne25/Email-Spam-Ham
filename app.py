@@ -2,14 +2,17 @@
 Module: app.py
 Giao diện Web Streamlit Đồ án Phân loại Email Spam Tiếng Việt
 (TF-IDF n-gram + Multinomial Naive Bayes).
-Phiên bản hoàn thiện: Giao diện toàn màn hình, không lỗi trạng thái, trực quan hóa thanh từ khóa sắc nét.
+Phiên bản Cao Cấp: Giao diện toàn màn hình, tích hợp Plotly Interactive Charts,
+phân tích từ khóa với ProgressColumn thông minh, loại bỏ hoàn toàn lỗi hiển thị mã thô và đè chữ.
 """
 
 import os
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import streamlit as st
+import plotly.graph_objects as go
+import plotly.figure_factory as ff
+from plotly.subplots import make_subplots
 
 from src.data_loader import (
     load_vietnamese_data,
@@ -54,7 +57,7 @@ st.markdown(
 
     /* Căn lề thoáng đãng không bị che khuất tiêu đề */
     .block-container {
-        padding-top: 2rem !important;
+        padding-top: 1.8rem !important;
         padding-bottom: 3.5rem !important;
         max-width: 1260px;
     }
@@ -191,71 +194,6 @@ st.markdown(
         border-radius: 999px;
     }
 
-    /* Thẻ từ khóa trực quan (Keyword Breakdown) */
-    .kw-card {
-        background: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 14px;
-        padding: 1.1rem 1.3rem;
-        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
-    }
-    .kw-card-spam { border-top: 4px solid #E11D48; }
-    .kw-card-ham  { border-top: 4px solid #059669; }
-    .kw-card-title {
-        font-weight: 700;
-        font-size: 0.96rem;
-        margin-bottom: 0.85rem;
-    }
-    .kw-title-spam { color: #BE123C; }
-    .kw-title-ham  { color: #047857; }
-    .kw-empty {
-        color: #64748B;
-        font-size: 0.88rem;
-        font-style: italic;
-        margin: 0.4rem 0;
-    }
-    .kw-row {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 0.6rem;
-    }
-    .kw-text {
-        width: 120px;
-        font-size: 0.88rem;
-        font-weight: 600;
-        color: #1E293B;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .kw-bar-bg {
-        flex: 1;
-        height: 8px;
-        background: #F1F5F9;
-        border-radius: 999px;
-        overflow: hidden;
-    }
-    .kw-bar-fill-spam {
-        height: 100%;
-        background: linear-gradient(90deg, #FB7185 0%, #E11D48 100%);
-        border-radius: 999px;
-    }
-    .kw-bar-fill-ham {
-        height: 100%;
-        background: linear-gradient(90deg, #34D399 0%, #059669 100%);
-        border-radius: 999px;
-    }
-    .kw-val {
-        width: 52px;
-        text-align: right;
-        font-size: 0.85rem;
-        font-weight: 700;
-        font-family: monospace;
-    }
-    .kw-val-spam { color: #E11D48; }
-    .kw-val-ham  { color: #059669; }
-
     /* KPI metric card */
     .kpi-card {
         background: #FFFFFF;
@@ -370,164 +308,173 @@ def get_evaluation_metrics(_model, _X_val, _y_val, _X_test, _y_test):
     return val(_model, _X_val, _y_val), test(_model, _X_test, _y_test, display=False)
 
 
-# ==================== CÁC HÀM VẼ BIỂU ĐỒ TRỰC QUAN ====================
-def plot_metrics_bar(test_metrics: dict):
-    """Vẽ biểu đồ cột trực quan cho 4 chỉ số hiệu năng Accuracy, Precision, Recall, F1."""
-    fig, ax = plt.subplots(figsize=(6.2, 3.8), dpi=140)
-    fig.patch.set_facecolor('#FFFFFF')
-    ax.set_facecolor('#FFFFFF')
-
-    names = ['Accuracy', 'Precision', 'Recall', 'F1-Score']
-    values = [
+# ==================== CÁC HÀM BIỂU ĐỒ PLOTLY TƯƠNG TÁC CAO CẤP ====================
+def create_plotly_metrics_chart(test_metrics: dict):
+    """Vẽ biểu đồ cột tương tác Plotly cho 4 chỉ số hiệu năng."""
+    names = ['Accuracy (Độ chính xác)', 'Precision (Độ chuẩn xác)', 'Recall (Độ nhạy)', 'F1-Score']
+    vals = [
         test_metrics['accuracy'] * 100,
         test_metrics['precision'] * 100,
         test_metrics['recall'] * 100,
         test_metrics['f1'] * 100,
     ]
-    colors = ['#6366F1', '#3B82F6', '#06B6D4', '#10B981']
+    colors = ['#4F46E5', '#2563EB', '#0D9488', '#059669']
 
-    bars = ax.bar(names, values, color=colors, width=0.48, edgecolor='none')
-    ax.set_ylim(0, 115)
-    ax.set_ylabel('Tỷ lệ (%)', fontsize=9.5, color='#475569', fontweight='semibold')
-    ax.set_title('Hiệu năng Mô hình trên Tập Kiểm thử (Test Set)', fontsize=11, fontweight='bold', color='#0F172A', pad=12)
-
-    for bar, val_num in zip(bars, values):
-        ax.text(
-            bar.get_x() + bar.get_width() / 2,
-            bar.get_height() + 2.5,
-            f"{val_num:.2f}%",
-            ha='center', va='bottom',
-            fontsize=10, fontweight='bold', color='#1E293B'
-        )
-
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_color('#E2E8F0')
-    ax.spines['bottom'].set_color('#E2E8F0')
-    ax.grid(axis='y', linestyle='--', alpha=0.3, color='#94A3B8')
-
-    fig.tight_layout()
+    fig = go.Figure(go.Bar(
+        x=names,
+        y=vals,
+        text=[f"<b>{v:.2f}%</b>" for v in vals],
+        textposition='outside',
+        marker=dict(color=colors, corner_radius=6),
+        hovertemplate="<b>%{x}</b><br>Tỷ lệ đạt được: <b>%{y:.2f}%</b><extra></extra>"
+    ))
+    fig.update_layout(
+        title=dict(text="<b>Chỉ Số Hiệu Năng Mô Hình (Tập Test Độc Lập)</b>", font=dict(size=14, color="#0F172A")),
+        yaxis=dict(range=[0, 118], title="Tỷ lệ (%)", gridcolor="#F1F5F9", tickfont=dict(color="#64748B")),
+        xaxis=dict(tickfont=dict(size=11, color="#334155")),
+        plot_bgcolor="#FFFFFF",
+        paper_bgcolor="#FFFFFF",
+        margin=dict(l=40, r=20, t=50, b=40),
+        height=350
+    )
     return fig
 
 
-def plot_confusion_matrix_styled(cm):
-    """Vẽ biểu đồ Ma trận nhầm lẫn hiện đại."""
-    fig, ax = plt.subplots(figsize=(4.8, 3.8), dpi=140)
-    fig.patch.set_facecolor('#FFFFFF')
-    ax.set_facecolor('#FFFFFF')
+def create_plotly_confusion_matrix(cm):
+    """Vẽ Heatmap tương tác Plotly cho Ma trận nhầm lẫn."""
+    labels_x = ['Dự đoán Hợp lệ (0)', 'Dự đoán Spam (1)']
+    labels_y = ['Thực tế Spam (1)', 'Thực tế Hợp lệ (0)']
 
-    im = ax.imshow(cm, interpolation='nearest', cmap=plt.cm.Purples)
-    cbar = ax.figure.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-    cbar.outline.set_visible(False)
+    # Sắp xếp ma trận theo thứ tự hiển thị trục y từ dưới lên
+    z_values = [
+        [int(cm[1, 0]), int(cm[1, 1])],
+        [int(cm[0, 0]), int(cm[0, 1])]
+    ]
 
-    classes = ['Hợp lệ (0)', 'Spam (1)']
-    ax.set(xticks=[0, 1], yticks=[0, 1], xticklabels=classes, yticklabels=classes)
-    ax.set_title('Ma trận Nhầm lẫn (Confusion Matrix)', fontsize=11, fontweight='bold', color='#0F172A', pad=12)
-    ax.set_ylabel('Nhãn thực tế (Actual)', fontsize=9.5, color='#334155', fontweight='semibold')
-    ax.set_xlabel('Nhãn dự đoán (Predicted)', fontsize=9.5, color='#334155', fontweight='semibold')
+    annotations = [
+        [f"<b>FN (Sót Spam)</b><br>{cm[1, 0]:,} mẫu", f"<b>TP (Bắt đúng Spam)</b><br>{cm[1, 1]:,} mẫu"],
+        [f"<b>TN (Đúng Hợp lệ)</b><br>{cm[0, 0]:,} mẫu", f"<b>FP (Báo nhầm Spam)</b><br>{cm[0, 1]:,} mẫu"]
+    ]
 
-    for spine in ax.spines.values():
-        spine.set_visible(False)
-
-    thresh = cm.max() / 2.0
-    labels_desc = [['TN (Đúng Hợp lệ)', 'FP (Báo nhầm Spam)'], ['FN (Sót Spam)', 'TP (Bắt đúng Spam)']]
-    for i in range(2):
-        for j in range(2):
-            color = '#FFFFFF' if cm[i, j] > thresh else '#0F172A'
-            ax.text(
-                j, i,
-                f"{labels_desc[i][j]}\n{cm[i, j]:,}",
-                ha='center', va='center',
-                color=color, fontsize=10.5, fontweight='bold'
-            )
-
-    fig.tight_layout()
+    fig = ff.create_annotated_heatmap(
+        z=z_values,
+        x=labels_x,
+        y=labels_y,
+        annotation_text=annotations,
+        colorscale=[[0, '#F5F3FF'], [0.5, '#C4B5FD'], [1, '#4F46E5']],
+        showscale=False
+    )
+    fig.update_layout(
+        title=dict(text="<b>Ma Trận Nhầm Lẫn (Confusion Matrix Heatmap)</b>", font=dict(size=14, color="#0F172A")),
+        xaxis=dict(tickfont=dict(size=11, color="#334155")),
+        yaxis=dict(tickfont=dict(size=11, color="#334155")),
+        plot_bgcolor="#FFFFFF",
+        paper_bgcolor="#FFFFFF",
+        margin=dict(l=50, r=40, t=60, b=50),
+        height=350
+    )
+    for i in fig['layout']['annotations']:
+        i['font'] = dict(size=12, color="#0F172A")
     return fig
 
 
-def plot_dataset_split_chart(X_train, X_val, X_test, y_train, y_val, y_test):
-    """Vẽ biểu đồ phân bổ số lượng mẫu Hợp lệ vs Spam trên cả 3 tập Train/Val/Test."""
-    fig, ax = plt.subplots(figsize=(6.2, 3.8), dpi=140)
-    fig.patch.set_facecolor('#FFFFFF')
-    ax.set_facecolor('#FFFFFF')
-
+def create_plotly_split_chart(X_train, X_val, X_test, y_train, y_val, y_test):
+    """Vẽ biểu đồ phân bổ số lượng mẫu Hợp lệ vs Spam trên 3 tập dữ liệu."""
     splits = ['Tập Train (70%)', 'Tập Val (15%)', 'Tập Test (15%)']
     ham_counts = [int((y_train == 0).sum()), int((y_val == 0).sum()), int((y_test == 0).sum())]
     spam_counts = [int(y_train.sum()), int(y_val.sum()), int(y_test.sum())]
 
-    x = np.arange(len(splits))
-    width = 0.35
-
-    bar1 = ax.bar(x - width/2, ham_counts, width, label='Email Hợp lệ', color='#10B981')
-    bar2 = ax.bar(x + width/2, spam_counts, width, label='Spam / Thư rác', color='#F43F5E')
-
-    ax.set_ylabel('Số lượng mẫu', fontsize=9.5, color='#475569', fontweight='semibold')
-    ax.set_title('Phân bổ Mẫu trên 3 Tập Dữ liệu (Stratified Split)', fontsize=11, fontweight='bold', color='#0F172A', pad=12)
-    ax.set_xticks(x)
-    ax.set_xticklabels(splits, fontsize=9, fontweight='semibold')
-    ax.legend(frameon=False, loc='upper right')
-
-    for bar in list(bar1) + list(bar2):
-        h = bar.get_height()
-        ax.text(
-            bar.get_x() + bar.get_width() / 2,
-            h + max(ham_counts) * 0.02,
-            f"{h:,}",
-            ha='center', va='bottom',
-            fontsize=8.5, fontweight='bold', color='#334155'
-        )
-
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_color('#E2E8F0')
-    ax.spines['bottom'].set_color('#E2E8F0')
-    ax.grid(axis='y', linestyle='--', alpha=0.3, color='#94A3B8')
-
-    fig.tight_layout()
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        name='Email Hợp lệ (Ham)',
+        x=splits,
+        y=ham_counts,
+        marker=dict(color='#10B981', corner_radius=6),
+        text=[f"{c:,}" for c in ham_counts],
+        textposition='outside',
+        hovertemplate="<b>%{x}</b><br>Hợp lệ: <b>%{y:,}</b> mẫu<extra></extra>"
+    ))
+    fig.add_trace(go.Bar(
+        name='Spam / Thư rác',
+        x=splits,
+        y=spam_counts,
+        marker=dict(color='#F43F5E', corner_radius=6),
+        text=[f"{c:,}" for c in spam_counts],
+        textposition='outside',
+        hovertemplate="<b>%{x}</b><br>Spam: <b>%{y:,}</b> mẫu<extra></extra>"
+    ))
+    fig.update_layout(
+        barmode='group',
+        title=dict(text="<b>Phân Bổ Dữ Liệu Train / Val / Test (Stratified Split)</b>", font=dict(size=14, color="#0F172A")),
+        yaxis=dict(title="Số lượng mẫu", gridcolor="#F1F5F9", tickfont=dict(color="#64748B")),
+        xaxis=dict(tickfont=dict(size=11, color="#334155")),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        plot_bgcolor="#FFFFFF",
+        paper_bgcolor="#FFFFFF",
+        margin=dict(l=40, r=20, t=60, b=40),
+        height=370
+    )
     return fig
 
 
-def plot_top_keywords(model, top_n=10):
-    """Vẽ biểu đồ Top từ khóa đặc trưng nhất của nhãn Spam và nhãn Hợp lệ."""
+def create_plotly_top_keywords(model, top_n=8):
+    """Vẽ biểu đồ Top từ khóa đặc trưng nhất cho Spam và Hợp lệ."""
     vectorizer = model.named_steps['tfidf']
     nb = model.named_steps['nb']
-    feature_names = np.array(vectorizer.get_feature_names_out())
-    log_diff = nb.feature_log_prob_[1] - nb.feature_log_prob_[0]
+    fn = np.array(vectorizer.get_feature_names_out())
+    diff = nb.feature_log_prob_[1] - nb.feature_log_prob_[0]
 
-    spam_idx = np.argsort(log_diff)[-top_n:][::-1]
-    ham_idx = np.argsort(log_diff)[:top_n]
+    spam_idx = np.argsort(diff)[-top_n:][::-1]
+    ham_idx = np.argsort(diff)[:top_n]
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11.5, 4.4), dpi=140)
-    fig.patch.set_facecolor('#FFFFFF')
+    fig = make_subplots(
+        rows=1, cols=2,
+        subplot_titles=(f"<b>Top {top_n} Từ Khóa Kéo Về SPAM</b>", f"<b>Top {top_n} Từ Khóa Kéo Về HỢP LỆ</b>"),
+        horizontal_spacing=0.15
+    )
 
     # Top Spam
-    ax1.set_facecolor('#FFFFFF')
-    y_pos1 = np.arange(top_n)
-    ax1.barh(y_pos1, log_diff[spam_idx][::-1], color='#F43F5E', height=0.6)
-    ax1.set_yticks(y_pos1)
-    ax1.set_yticklabels(feature_names[spam_idx][::-1], fontsize=9.5, fontweight='semibold')
-    ax1.set_title(f'Top {top_n} Từ khóa Đặc trưng SPAM', fontsize=11, fontweight='bold', color='#9F1239', pad=10)
-    ax1.set_xlabel('Hệ số Log-Odds (Kéo về Spam)', fontsize=9, color='#475569')
-    ax1.spines['top'].set_visible(False)
-    ax1.spines['right'].set_visible(False)
+    fig.add_trace(
+        go.Bar(
+            y=fn[spam_idx][::-1],
+            x=diff[spam_idx][::-1],
+            orientation='h',
+            marker=dict(color='#F43F5E', corner_radius=4),
+            text=[f"+{v:.2f}" for v in diff[spam_idx][::-1]],
+            textposition='outside',
+            hovertemplate="Từ khóa: <b>%{y}</b><br>Trọng số: +%{x:.2f}<extra></extra>"
+        ),
+        row=1, col=1
+    )
 
     # Top Ham
-    ax2.set_facecolor('#FFFFFF')
-    y_pos2 = np.arange(top_n)
-    ax2.barh(y_pos2, (-log_diff[ham_idx])[::-1], color='#10B981', height=0.6)
-    ax2.set_yticks(y_pos2)
-    ax2.set_yticklabels(feature_names[ham_idx][::-1], fontsize=9.5, fontweight='semibold')
-    ax2.set_title(f'Top {top_n} Từ khóa Đặc trưng HỢP LỆ', fontsize=11, fontweight='bold', color='#065F46', pad=10)
-    ax2.set_xlabel('Hệ số Log-Odds (Kéo về Hợp lệ)', fontsize=9, color='#475569')
-    ax2.spines['top'].set_visible(False)
-    ax2.spines['right'].set_visible(False)
+    fig.add_trace(
+        go.Bar(
+            y=fn[ham_idx][::-1],
+            x=(-diff[ham_idx])[::-1],
+            orientation='h',
+            marker=dict(color='#10B981', corner_radius=4),
+            text=[f"{v:.2f}" for v in (-diff[ham_idx])[::-1]],
+            textposition='outside',
+            hovertemplate="Từ khóa: <b>%{y}</b><br>Trọng số: -%{x:.2f}<extra></extra>"
+        ),
+        row=1, col=2
+    )
 
-    fig.tight_layout()
+    fig.update_layout(
+        showlegend=False,
+        plot_bgcolor="#FFFFFF",
+        paper_bgcolor="#FFFFFF",
+        margin=dict(l=60, r=40, t=50, b=40),
+        height=370
+    )
+    fig.update_xaxes(title_text="Mức độ đặc trưng (Log-Odds)", gridcolor="#F1F5F9", tickfont=dict(color="#64748B"))
+    fig.update_yaxes(tickfont=dict(size=11, color="#1E293B", family="sans-serif"))
     return fig
 
 
-def render_keyword_breakdown(keywords: list):
-    """Hiển thị bảng trực quan hóa từ khóa bằng HTML/CSS sạch sẽ, không chồng lấn chữ."""
+def render_keyword_table(keywords: list):
+    """Hiển thị bảng trực quan hóa từ khóa bằng Native Dataframe có Progress Bar, chống 100% lỗi code thô."""
     if not keywords:
         st.info("Không tìm thấy từ khóa đặc trưng trùng khớp trong từ điển TF-IDF.")
         return
@@ -535,58 +482,62 @@ def render_keyword_breakdown(keywords: list):
     spam_kw = [k for k in keywords if k['tendency'] == 'Spam']
     ham_kw = [k for k in keywords if k['tendency'] == 'Ham']
 
-    max_score = max([abs(k['score']) for k in keywords]) if keywords else 1.0
-    if max_score == 0:
-        max_score = 1.0
-
-    col_left, col_right = st.columns(2)
-    with col_left:
-        rows_spam = ""
+    col_spam, col_ham = st.columns(2)
+    with col_spam:
+        st.markdown("##### 🚨 Từ khóa nghi vấn (Kéo về SPAM)")
         if not spam_kw:
-            rows_spam = "<p class='kw-empty'>Không phát hiện từ khóa nghi vấn nổi bật.</p>"
+            st.caption("Không phát hiện từ khóa nghi vấn nổi bật.")
         else:
-            for k in spam_kw:
-                pct = min(max(int((abs(k['score']) / max_score) * 100), 12), 100)
-                rows_spam += f"""
-                <div class="kw-row">
-                    <span class="kw-text" title="{k['word']}">{k['word']}</span>
-                    <div class="kw-bar-bg"><div class="kw-bar-fill-spam" style="width: {pct}%;"></div></div>
-                    <span class="kw-val kw-val-spam">+{k['score']:.2f}</span>
-                </div>
-                """
-        st.markdown(
-            f"""
-            <div class="kw-card kw-card-spam">
-                <div class="kw-card-title kw-title-spam">🚨 Từ khóa kéo về SPAM (Thư rác)</div>
-                {rows_spam}
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+            df_spam = pd.DataFrame([
+                {
+                    'Từ khóa': k['word'],
+                    'Điểm số': f"+{k['score']:.2f}",
+                    'Mức độ tác động': min(max(abs(k['score']), 0.05), 1.0)
+                }
+                for k in spam_kw
+            ])
+            st.dataframe(
+                df_spam,
+                column_config={
+                    "Mức độ tác động": st.column_config.ProgressColumn(
+                        "Mức độ tác động",
+                        help="Thanh đo tỷ lệ kéo email về nhãn Spam",
+                        format="%.2f",
+                        min_value=0,
+                        max_value=1.0,
+                    ),
+                },
+                use_container_width=True,
+                hide_index=True
+            )
 
-    with col_right:
-        rows_ham = ""
+    with col_ham:
+        st.markdown("##### 🛡️ Từ khóa an toàn (Kéo về HỢP LỆ)")
         if not ham_kw:
-            rows_ham = "<p class='kw-empty'>Không phát hiện từ khóa thông thường nổi bật.</p>"
+            st.caption("Không phát hiện từ khóa an toàn nổi bật.")
         else:
-            for k in ham_kw:
-                pct = min(max(int((abs(k['score']) / max_score) * 100), 12), 100)
-                rows_ham += f"""
-                <div class="kw-row">
-                    <span class="kw-text" title="{k['word']}">{k['word']}</span>
-                    <div class="kw-bar-bg"><div class="kw-bar-fill-ham" style="width: {pct}%;"></div></div>
-                    <span class="kw-val kw-val-ham">{k['score']:.2f}</span>
-                </div>
-                """
-        st.markdown(
-            f"""
-            <div class="kw-card kw-card-ham">
-                <div class="kw-card-title kw-title-ham">✅ Từ khóa kéo về HỢP LỆ (Email an toàn)</div>
-                {rows_ham}
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+            df_ham = pd.DataFrame([
+                {
+                    'Từ khóa': k['word'],
+                    'Điểm số': f"{k['score']:.2f}",
+                    'Mức độ tác động': min(max(abs(k['score']), 0.05), 1.0)
+                }
+                for k in ham_kw
+            ])
+            st.dataframe(
+                df_ham,
+                column_config={
+                    "Mức độ tác động": st.column_config.ProgressColumn(
+                        "Mức độ tác động",
+                        help="Thanh đo tỷ lệ kéo email về nhãn Hợp lệ",
+                        format="%.2f",
+                        min_value=0,
+                        max_value=1.0,
+                    ),
+                },
+                use_container_width=True,
+                hide_index=True
+            )
 
 
 # ==================== DỮ LIỆU & MÔ HÌNH ====================
@@ -612,7 +563,7 @@ st.markdown(
 # ==================== 2 TABS CHÍNH ====================
 tab_demo, tab_report = st.tabs([
     "🔍 Kiểm thử Email trực tiếp",
-    "📊 Báo cáo Thông số & Biểu đồ Trực quan",
+    "📊 Báo cáo Thông số & Biểu đồ Trực quan (Plotly)",
 ])
 
 # ==================== TAB 1: TRẢI NGHIỆM PHÂN LOẠI EMAIL ====================
@@ -736,14 +687,14 @@ with tab_demo:
                     unsafe_allow_html=True,
                 )
 
-            # Phân tích từ khóa dạng visual card sắc nét, không chồng lấn
+            # Bảng trực quan hóa từ khóa bằng Native Dataframe có Progress Bar, không bao giờ bị in mã thô
             st.markdown("<div style='height: 1.2rem;'></div>", unsafe_allow_html=True)
             st.markdown("##### 🔎 Phân tích Từ khóa Ảnh hưởng đến Quyết định:")
             keywords = explain_prediction(model, email_text, top_k=8)
-            render_keyword_breakdown(keywords)
+            render_keyword_table(keywords)
 
 
-# ==================== TAB 2: BÁO CÁO THÔNG SỐ & BIỂU ĐỒ TRỰC QUAN ====================
+# ==================== TAB 2: BÁO CÁO THÔNG SỐ & BIỂU ĐỒ TRỰC QUAN (PLOTLY) ====================
 with tab_report:
     val_metrics, test_metrics = get_evaluation_metrics(model, X_val, y_val, X_test, y_test)
 
@@ -760,31 +711,27 @@ with tab_report:
 
     st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
 
-    # Cụm biểu đồ 1: Cột 4 chỉ số + Heatmap Ma trận nhầm lẫn
+    # Cụm biểu đồ 1: Cột 4 chỉ số Plotly + Heatmap Ma trận nhầm lẫn Plotly
     col_chart1, col_chart2 = st.columns([1.1, 1])
     with col_chart1:
-        fig_bar = plot_metrics_bar(test_metrics)
-        st.pyplot(fig_bar, use_container_width=True)
-        plt.close(fig_bar)
+        fig_bar = create_plotly_metrics_chart(test_metrics)
+        st.plotly_chart(fig_bar, use_container_width=True)
 
     with col_chart2:
-        fig_cm = plot_confusion_matrix_styled(test_metrics['confusion_matrix'])
-        st.pyplot(fig_cm, use_container_width=True)
-        plt.close(fig_cm)
+        fig_cm = create_plotly_confusion_matrix(test_metrics['confusion_matrix'])
+        st.plotly_chart(fig_cm, use_container_width=True)
 
     st.markdown("<div style='height: 1.2rem;'></div>", unsafe_allow_html=True)
 
-    # Cụm biểu đồ 2: Phân bổ dữ liệu 3 tập + Top từ khóa đặc trưng
-    col_split, col_kw_all = st.columns([1, 1.5])
+    # Cụm biểu đồ 2: Phân bổ dữ liệu 3 tập Plotly + Top từ khóa đặc trưng Plotly
+    col_split, col_kw_all = st.columns([1, 1.4])
     with col_split:
-        fig_split = plot_dataset_split_chart(X_train, X_val, X_test, y_train, y_val, y_test)
-        st.pyplot(fig_split, use_container_width=True)
-        plt.close(fig_split)
+        fig_split = create_plotly_split_chart(X_train, X_val, X_test, y_train, y_val, y_test)
+        st.plotly_chart(fig_split, use_container_width=True)
 
     with col_kw_all:
-        fig_top_kw = plot_top_keywords(model, top_n=8)
-        st.pyplot(fig_top_kw, use_container_width=True)
-        plt.close(fig_top_kw)
+        fig_top_kw = create_plotly_top_keywords(model, top_n=8)
+        st.plotly_chart(fig_top_kw, use_container_width=True)
 
     st.markdown("<div style='height: 1.2rem;'></div>", unsafe_allow_html=True)
     st.markdown("##### 📋 Báo cáo Phân loại Chi tiết (Classification Report)")
