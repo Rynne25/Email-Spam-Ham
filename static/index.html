@@ -537,6 +537,63 @@
 
     let debounceTimer = null;
     let cachedMetrics = null;
+    let localWeights = null;
+    const STOP_WORDS = new Set(['lt', 'gt', 'amp', 'fwiw', 'lor', 'pa', 'ill', 'da', 'ah']);
+    const WORD_REGEX = /[a-zA-ZàáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđĐ]{2,}/g;
+
+    // Client-side fallback inference engine for GitHub Pages (zero-server mode)
+    async function clientSidePredict(text) {
+      if (!localWeights) {
+        try {
+          const res = await fetch('./model_weights.json');
+          localWeights = await res.json();
+        } catch (e) {
+          console.error("Lỗi nạp local model weights:", e);
+          return null;
+        }
+      }
+
+      const rawMatches = (text.toLowerCase().match(WORD_REGEX) || []).filter(w => !STOP_WORDS.has(w));
+      const tokens = [...rawMatches];
+      for (let i = 0; i < rawMatches.length - 1; i++) {
+        tokens.push(rawMatches[i] + ' ' + rawMatches[i + 1]);
+      }
+
+      let score = 0.0;
+      const explanation = [];
+      for (const t of tokens) {
+        if (localWeights && localWeights.hasOwnProperty(t)) {
+          const w = localWeights[t];
+          score += w;
+          explanation.push({
+            word: t,
+            score: w,
+            tendency: w > 0 ? 'Spam' : 'Ham'
+          });
+        }
+      }
+
+      const uniqueExpMap = new Map();
+      for (const item of explanation) {
+        if (!uniqueExpMap.has(item.word) || Math.abs(item.score) > Math.abs(uniqueExpMap.get(item.word).score)) {
+          uniqueExpMap.set(item.word, item);
+        }
+      }
+      const sortedExp = Array.from(uniqueExpMap.values()).sort((a, b) => Math.abs(b.score) - Math.abs(a.score)).slice(0, 10);
+
+      const probSpam = 1.0 / (1.0 + Math.exp(-score));
+      const probHam = 1.0 - probSpam;
+      const pred = probSpam >= 0.5 ? 1 : 0;
+      const conf = pred === 1 ? probSpam : probHam;
+
+      return {
+        prediction: pred,
+        label: pred === 1 ? 'Spam' : 'Ham',
+        confidence: conf,
+        probabilities: { Ham: probHam, Spam: probSpam },
+        explanation: sortedExp
+      };
+    }
 
     // ==================== TAB SWITCHING ====================
     function switchTab(tab) {
@@ -570,8 +627,15 @@
     // ==================== SAMPLES & CHIPS ====================
     async function loadSamples() {
       try {
-        const res = await fetch('/api/samples');
-        const data = await res.json();
+        let res = await fetch('/api/samples').catch(() => null);
+        let data = null;
+        if (res && res.ok) {
+          data = await res.json();
+        } else {
+          // GitHub Pages static fallback
+          res = await fetch('./samples.json');
+          data = await res.json();
+        }
 
         const spamContainer = document.getElementById('spam-chips-container');
         const hamContainer = document.getElementById('ham-chips-container');
@@ -643,13 +707,23 @@
       }
 
       try {
+        let data = null;
         const res = await fetch('/api/predict', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text })
-        });
-        const data = await res.json();
-        updateVerdictUI(data);
+        }).catch(() => null);
+
+        if (res && res.ok) {
+          data = await res.json();
+        } else {
+          // GitHub Pages static mode: client-side inference
+          data = await clientSidePredict(text);
+        }
+
+        if (data) {
+          updateVerdictUI(data);
+        }
       } catch (err) {
         console.error("Lỗi phân loại email:", err);
       } finally {
@@ -769,8 +843,14 @@
     // ==================== TAB 2: METRICS & PLOTLY CHARTS ====================
     async function fetchMetrics() {
       try {
-        const res = await fetch('/api/metrics');
-        cachedMetrics = await res.json();
+        let res = await fetch('/api/metrics').catch(() => null);
+        if (res && res.ok) {
+          cachedMetrics = await res.json();
+        } else {
+          // GitHub Pages static fallback
+          res = await fetch('./metrics.json');
+          cachedMetrics = await res.json();
+        }
 
         // Fill KPIs
         document.getElementById('kpi-acc').innerText = `${(cachedMetrics.test.accuracy * 100).toFixed(1)}%`;
@@ -940,8 +1020,15 @@
       tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-500">Đang chọn ngẫu nhiên 10 mẫu từ test.csv...</td></tr>';
 
       try {
-        const res = await fetch('/api/random-tests?n=10');
-        const data = await res.json();
+        let res = await fetch('/api/random-tests?n=10').catch(() => null);
+        let data = null;
+        if (res && res.ok) {
+          data = await res.json();
+        } else {
+          // GitHub Pages static fallback
+          res = await fetch('./random_tests.json');
+          data = await res.json();
+        }
 
         tbody.innerHTML = data.samples.map(s => `
           <tr class="hover:bg-white/[0.02] transition-colors">
