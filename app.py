@@ -381,7 +381,7 @@ def plot_confusion_matrix(cm, title: str):
     cbar = ax.figure.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     cbar.outline.set_visible(False)
 
-    classes = ['Ham (0)', 'Spam (1)']
+    classes = ['Hợp lệ (0)', 'Spam (1)']
     ax.set(
         xticks=[0, 1],
         yticks=[0, 1],
@@ -532,8 +532,8 @@ with tab_demo:
                     f"""
                     <div class="result-box result-ham">
                         <div>
-                            <p class="result-title-ham">✅ EMAIL AN TOÀN (HAM)</p>
-                            <p class="result-desc">Nội dung bình thường, không phát hiện dấu hiệu spam (Nhãn dự đoán: <b>0</b>).</p>
+                            <p class="result-title-ham">✅ EMAIL HỢP LỆ / AN TOÀN (HAM)</p>
+                            <p class="result-desc">Nội dung thư thông thường, không phát hiện dấu hiệu lừa đảo (Nhãn dự đoán: <b>0</b>).</p>
                         </div>
                         <div class="conf-badge conf-ham">Độ tin cậy {result['confidence']*100:.2f}%</div>
                     </div>
@@ -562,7 +562,7 @@ with tab_demo:
                     f"""
                     <div class="prob-card">
                         <div class="prob-header">
-                            <span class="prob-label">✅ Xác suất HAM (Email thường)</span>
+                            <span class="prob-label">✅ Xác suất HỢP LỆ (Email thường)</span>
                             <span class="prob-value">{prob_ham:.2f}%</span>
                         </div>
                         <div class="bar-track">
@@ -682,8 +682,8 @@ with tab_data:
     rows = []
     for _, row in sample_df.iterrows():
         pred_info = predict_single(model, row['text'])
-        actual_str = "Spam" if row['label'] == 1 else "Ham"
-        pred_str = pred_info['label']
+        actual_str = "Spam" if row['label'] == 1 else "Hợp lệ"
+        pred_str = "Spam" if pred_info['prediction'] == 1 else "Hợp lệ"
         rows.append({
             'Nội dung (rút gọn)': row['text'][:140] + ('...' if len(row['text']) > 140 else ''),
             'Thực tế': actual_str,
@@ -699,5 +699,5 @@ with tab_data:
     file_to_view = os.path.join(SPLIT_DIR, split_choice)
     if os.path.exists(file_to_view):
         preview_df = pd.read_csv(file_to_view).head(20)
-        preview_df['Nhãn'] = preview_df['label'].map({0: 'Ham (0)', 1: 'Spam (1)'})
+        preview_df['Nhãn'] = preview_df['label'].map({0: 'Hợp lệ (0)', 1: 'Spam (1)'})
         st.dataframe(preview_df[['text', 'Nhãn']], use_container_width=True, hide_index=True)

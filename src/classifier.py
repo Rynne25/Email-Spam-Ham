@@ -41,7 +41,7 @@ def build_pipeline(language: str = 'vi') -> Pipeline:
         sublinear_tf=True,
         lowercase=True
     )
-    classifier = MultinomialNB(alpha=0.1)
+    classifier = MultinomialNB(alpha=0.1, fit_prior=False)
 
     pipeline = Pipeline([
         ('tfidf', vectorizer),
