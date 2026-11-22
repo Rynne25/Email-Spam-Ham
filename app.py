@@ -2,7 +2,7 @@
 Module: app.py
 Giao diện Web Streamlit Đồ án Phân loại Email Spam Tiếng Việt
 (TF-IDF n-gram + Multinomial Naive Bayes).
-Giao diện tối giản toàn màn hình, không sidebar, trang bị trọn bộ biểu đồ trực quan.
+Phiên bản hoàn thiện: Giao diện toàn màn hình, không lỗi trạng thái, trực quan hóa thanh từ khóa sắc nét.
 """
 
 import os
@@ -45,15 +45,18 @@ st.markdown(
         color: #0F172A;
     }
 
-    /* Ẩn hoàn toàn sidebar thừa */
+    /* Ẩn hoàn toàn sidebar và chỉnh trong suốt header */
     [data-testid="stSidebar"] { display: none !important; }
     [data-testid="stSidebarCollapseButton"] { display: none !important; }
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+    }
 
-    /* Căn lề thoáng đãng */
+    /* Căn lề thoáng đãng không bị che khuất tiêu đề */
     .block-container {
-        padding-top: 1.5rem;
-        padding-bottom: 3rem;
-        max-width: 1280px;
+        padding-top: 2rem !important;
+        padding-bottom: 3.5rem !important;
+        max-width: 1260px;
     }
 
     /* Header thương hiệu */
@@ -62,6 +65,7 @@ st.markdown(
         padding: 1.8rem 2.2rem;
         border-radius: 18px;
         color: #FFFFFF;
+        margin-top: 0.5rem;
         margin-bottom: 1.5rem;
         box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25);
     }
@@ -84,10 +88,11 @@ st.markdown(
         margin: 0;
         letter-spacing: -0.03em;
         color: #FFFFFF;
+        line-height: 1.25;
     }
     .header-desc {
-        margin: 0.45rem 0 0 0;
-        font-size: 0.96rem;
+        margin: 0.5rem 0 0 0;
+        font-size: 0.95rem;
         color: #CBD5E1;
         line-height: 1.5;
     }
@@ -117,21 +122,11 @@ st.markdown(
         display: none;
     }
 
-    /* Card giao diện */
-    .metric-panel {
-        background: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 16px;
-        padding: 1.25rem 1.4rem;
-        box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
-        margin-bottom: 1rem;
-    }
-
     /* Thẻ kết quả phân loại */
     .result-banner {
         border-radius: 16px;
         padding: 1.4rem 1.7rem;
-        margin: 1rem 0 1.2rem 0;
+        margin: 1.2rem 0;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -195,6 +190,71 @@ st.markdown(
         background: linear-gradient(90deg, #34D399 0%, #059669 100%);
         border-radius: 999px;
     }
+
+    /* Thẻ từ khóa trực quan (Keyword Breakdown) */
+    .kw-card {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 14px;
+        padding: 1.1rem 1.3rem;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+    }
+    .kw-card-spam { border-top: 4px solid #E11D48; }
+    .kw-card-ham  { border-top: 4px solid #059669; }
+    .kw-card-title {
+        font-weight: 700;
+        font-size: 0.96rem;
+        margin-bottom: 0.85rem;
+    }
+    .kw-title-spam { color: #BE123C; }
+    .kw-title-ham  { color: #047857; }
+    .kw-empty {
+        color: #64748B;
+        font-size: 0.88rem;
+        font-style: italic;
+        margin: 0.4rem 0;
+    }
+    .kw-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 0.6rem;
+    }
+    .kw-text {
+        width: 120px;
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: #1E293B;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .kw-bar-bg {
+        flex: 1;
+        height: 8px;
+        background: #F1F5F9;
+        border-radius: 999px;
+        overflow: hidden;
+    }
+    .kw-bar-fill-spam {
+        height: 100%;
+        background: linear-gradient(90deg, #FB7185 0%, #E11D48 100%);
+        border-radius: 999px;
+    }
+    .kw-bar-fill-ham {
+        height: 100%;
+        background: linear-gradient(90deg, #34D399 0%, #059669 100%);
+        border-radius: 999px;
+    }
+    .kw-val {
+        width: 52px;
+        text-align: right;
+        font-size: 0.85rem;
+        font-weight: 700;
+        font-family: monospace;
+    }
+    .kw-val-spam { color: #E11D48; }
+    .kw-val-ham  { color: #059669; }
 
     /* KPI metric card */
     .kpi-card {
@@ -466,40 +526,67 @@ def plot_top_keywords(model, top_n=10):
     return fig
 
 
-def plot_keyword_contribution_bar(keywords: list):
-    """Vẽ mini bar chart thể hiện điểm đóng góp của các từ khóa trong câu được test."""
+def render_keyword_breakdown(keywords: list):
+    """Hiển thị bảng trực quan hóa từ khóa bằng HTML/CSS sạch sẽ, không chồng lấn chữ."""
     if not keywords:
-        return None
+        st.info("Không tìm thấy từ khóa đặc trưng trùng khớp trong từ điển TF-IDF.")
+        return
 
-    words = [k['word'] for k in keywords][::-1]
-    scores = [k['score'] for k in keywords][::-1]
-    colors = ['#F43F5E' if s > 0 else '#10B981' for s in scores]
+    spam_kw = [k for k in keywords if k['tendency'] == 'Spam']
+    ham_kw = [k for k in keywords if k['tendency'] == 'Ham']
 
-    fig, ax = plt.subplots(figsize=(8.2, max(2.6, len(keywords) * 0.35)), dpi=140)
-    fig.patch.set_facecolor('#FFFFFF')
-    ax.set_facecolor('#FFFFFF')
+    max_score = max([abs(k['score']) for k in keywords]) if keywords else 1.0
+    if max_score == 0:
+        max_score = 1.0
 
-    y_pos = np.arange(len(words))
-    ax.barh(y_pos, scores, color=colors, height=0.55)
-    ax.set_yticks(y_pos)
-    ax.set_yticklabels(words, fontsize=9.5, fontweight='semibold')
-    ax.axvline(0, color='#94A3B8', linewidth=1)
-    ax.set_xlabel('Mức độ ảnh hưởng: > 0 (kéo về SPAM) | < 0 (kéo về HỢP LỆ)', fontsize=8.8, color='#475569', labelpad=8)
-    ax.set_title('Điểm Trọng số Đóng góp của Từng Từ khóa trong Email', fontsize=10.5, fontweight='bold', color='#0F172A', pad=10)
+    col_left, col_right = st.columns(2)
+    with col_left:
+        rows_spam = ""
+        if not spam_kw:
+            rows_spam = "<p class='kw-empty'>Không phát hiện từ khóa nghi vấn nổi bật.</p>"
+        else:
+            for k in spam_kw:
+                pct = min(max(int((abs(k['score']) / max_score) * 100), 12), 100)
+                rows_spam += f"""
+                <div class="kw-row">
+                    <span class="kw-text" title="{k['word']}">{k['word']}</span>
+                    <div class="kw-bar-bg"><div class="kw-bar-fill-spam" style="width: {pct}%;"></div></div>
+                    <span class="kw-val kw-val-spam">+{k['score']:.2f}</span>
+                </div>
+                """
+        st.markdown(
+            f"""
+            <div class="kw-card kw-card-spam">
+                <div class="kw-card-title kw-title-spam">🚨 Từ khóa kéo về SPAM (Thư rác)</div>
+                {rows_spam}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-    for i, s in enumerate(scores):
-        align = 'left' if s >= 0 else 'right'
-        offset = 0.03 if s >= 0 else -0.03
-        ax.text(s + offset, i, f"{s:+.2f}", va='center', ha=align, fontsize=8.5, fontweight='bold', color='#1E293B')
-
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_color('#E2E8F0')
-    ax.spines['bottom'].set_color('#E2E8F0')
-    ax.grid(axis='x', linestyle='--', alpha=0.3, color='#94A3B8')
-
-    fig.tight_layout()
-    return fig
+    with col_right:
+        rows_ham = ""
+        if not ham_kw:
+            rows_ham = "<p class='kw-empty'>Không phát hiện từ khóa thông thường nổi bật.</p>"
+        else:
+            for k in ham_kw:
+                pct = min(max(int((abs(k['score']) / max_score) * 100), 12), 100)
+                rows_ham += f"""
+                <div class="kw-row">
+                    <span class="kw-text" title="{k['word']}">{k['word']}</span>
+                    <div class="kw-bar-bg"><div class="kw-bar-fill-ham" style="width: {pct}%;"></div></div>
+                    <span class="kw-val kw-val-ham">{k['score']:.2f}</span>
+                </div>
+                """
+        st.markdown(
+            f"""
+            <div class="kw-card kw-card-ham">
+                <div class="kw-card-title kw-title-ham">✅ Từ khóa kéo về HỢP LỆ (Email an toàn)</div>
+                {rows_ham}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 # ==================== DỮ LIỆU & MÔ HÌNH ====================
@@ -534,22 +621,37 @@ with tab_demo:
     if state_key not in st.session_state:
         st.session_state[state_key] = ""
 
+    # Callbacks cập nhật state an toàn không bao giờ văng lỗi Streamlit
+    def set_sample_text(text: str):
+        st.session_state[state_key] = text
+
+    def clear_text_area():
+        st.session_state[state_key] = ""
+
     st.markdown("##### ⚡ Chọn nhanh mẫu thử để trình chiếu demo:")
     sample_items = list(QUICK_SAMPLES.items())
 
     cols_row1 = st.columns(4)
     for col, (btn_label, sample_text) in zip(cols_row1, sample_items[:4]):
         with col:
-            if st.button(btn_label, use_container_width=True, key=f"btn_{btn_label}"):
-                st.session_state[state_key] = sample_text
-                st.rerun()
+            st.button(
+                btn_label,
+                on_click=set_sample_text,
+                args=(sample_text,),
+                key=f"btn_{btn_label}",
+                use_container_width=True,
+            )
 
     cols_row2 = st.columns(4)
     for col, (btn_label, sample_text) in zip(cols_row2, sample_items[4:]):
         with col:
-            if st.button(btn_label, use_container_width=True, key=f"btn_{btn_label}"):
-                st.session_state[state_key] = sample_text
-                st.rerun()
+            st.button(
+                btn_label,
+                on_click=set_sample_text,
+                args=(sample_text,),
+                key=f"btn_{btn_label}",
+                use_container_width=True,
+            )
 
     email_text = st.text_area(
         "✉️ Nội dung Email / Tin nhắn cần kiểm tra",
@@ -562,9 +664,7 @@ with tab_demo:
     with col_act1:
         predict_clicked = st.button("🚀 Phân loại ngay", type="primary", use_container_width=True)
     with col_act2:
-        if st.button("🧹 Xóa nội dung", use_container_width=True):
-            st.session_state[state_key] = ""
-            st.rerun()
+        st.button("🧹 Xóa nội dung", on_click=clear_text_area, use_container_width=True)
 
     if predict_clicked:
         if not email_text.strip():
@@ -636,17 +736,11 @@ with tab_demo:
                     unsafe_allow_html=True,
                 )
 
-            # Biểu đồ thanh phân tích đóng góp từ khóa
+            # Phân tích từ khóa dạng visual card sắc nét, không chồng lấn
             st.markdown("<div style='height: 1.2rem;'></div>", unsafe_allow_html=True)
-            st.markdown("##### 📈 Trực quan hóa Điểm Ảnh Hưởng của Từ Khóa")
+            st.markdown("##### 🔎 Phân tích Từ khóa Ảnh hưởng đến Quyết định:")
             keywords = explain_prediction(model, email_text, top_k=8)
-            if not keywords:
-                st.info("Không tìm thấy từ khóa đặc trưng trùng khớp trong từ điển TF-IDF.")
-            else:
-                fig_kw = plot_keyword_contribution_bar(keywords)
-                if fig_kw:
-                    st.pyplot(fig_kw, use_container_width=True)
-                    plt.close(fig_kw)
+            render_keyword_breakdown(keywords)
 
 
 # ==================== TAB 2: BÁO CÁO THÔNG SỐ & BIỂU ĐỒ TRỰC QUAN ====================
