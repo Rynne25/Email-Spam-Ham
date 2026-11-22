@@ -1,5 +1,7 @@
 # Hệ Thống Phân Loại Email Spam Tiếng Việt (Vietnamese Spam Email Detector)
 > **Nhánh: `vietnamese-demo`** — Phiên bản tinh gọn, thuần Tiếng Việt phục vụ trình chiếu đồ án và kiểm nghiệm trực tiếp.
+> 
+> 🌐 **Dùng thử trực tiếp trên Web (Live Demo):** [https://rynne25.github.io/Email-Spam-Ham/](https://rynne25.github.io/Email-Spam-Ham/)
 
 ---
 
