@@ -28,7 +28,10 @@ Email-Spam-Ham/
 ├── tests/
 │   ├── test_data_loader.py             # Unit test cho data loader tiếng Việt
 │   └── test_classifier.py              # Unit test cho pipeline và dự đoán
-├── app.py                              # Giao diện Web demo tương tác (Streamlit)
+├── static/
+│   └── index.html                      # Single-Page Web App phong cách Liquid Glass (Tailwind + Plotly)
+├── server.py                           # Backend FastAPI phục vụ API và Static Web App
+├── app.py                              # Giao diện Web demo tương tác phụ (Streamlit)
 ├── main.py                             # Giao diện dòng lệnh demo (CLI)
 ├── requirements.txt
 └── README.md
@@ -43,13 +46,20 @@ Email-Spam-Ham/
 pip install -r requirements.txt
 ```
 
-### Cách 1: Khởi chạy Giao diện Web Streamlit (Khuyến nghị cho thuyết trình / báo cáo)
+### Cách 1: Khởi chạy Web App Liquid Glass (Khuyến nghị hàng đầu — Độc lập & Tối tân)
+```bash
+python -m uvicorn server:app --host 127.0.0.1 --port 8000
+```
+Truy cập: `http://localhost:8000`
+- Giao diện Single-Page phong cách Liquid Glass (Dark Obsidian, hiệu ứng kính mờ `backdrop-blur-2xl`, viền specular hairline).
+- Quét và phân loại tự động thời gian thực (Real-time live inference khi gõ phím/chọn chip).
+- Thẻ kết luận morphing animation đổi màu theo nhãn cảnh báo (Crimson / Emerald).
+- Tab Trung tâm Phân tích tích hợp biểu đồ Plotly (Ma trận nhầm lẫn Heatmap, phân bổ 3 tập dữ liệu, Top từ khóa Log-Odds, bộ chọn 10 mẫu ngẫu nhiên từ Test set).
+
+### Cách 2: Khởi chạy Giao diện Streamlit cũ
 ```bash
 streamlit run app.py
 ```
-- Giao diện có sẵn 8 mẫu email thực tế tại Việt Nam (Trúng thưởng, Ngân hàng, Tuyển dụng, Vay tiền, Giả shipper, Họp nhóm, Học tập, Công việc).
-- Hiển thị xác suất Spam/Ham, thẻ kết luận và phân tích các từ khóa nghi vấn trực quan.
-- Bảng KPI và Ma trận nhầm lẫn (Confusion Matrix) trên tập kiểm thử độc lập.
 
 ### Cách 2: Khởi chạy Demo dòng lệnh (CLI)
 ```bash
