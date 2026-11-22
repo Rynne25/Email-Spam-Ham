@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 import plotly.graph_objects as go
-import plotly.figure_factory as ff
+import plotly.express as px
 from plotly.subplots import make_subplots
 
 from src.data_loader import (
@@ -325,7 +325,7 @@ def create_plotly_metrics_chart(test_metrics: dict):
         y=vals,
         text=[f"<b>{v:.2f}%</b>" for v in vals],
         textposition='outside',
-        marker=dict(color=colors, corner_radius=6),
+        marker=dict(color=colors, cornerradius=6),
         hovertemplate="<b>%{x}</b><br>Tỷ lệ đạt được: <b>%{y:.2f}%</b><extra></extra>"
     ))
     fig.update_layout(
@@ -341,29 +341,31 @@ def create_plotly_metrics_chart(test_metrics: dict):
 
 
 def create_plotly_confusion_matrix(cm):
-    """Vẽ Heatmap tương tác Plotly cho Ma trận nhầm lẫn."""
+    """Vẽ Heatmap tương tác Plotly cho Ma trận nhầm lẫn bằng px.imshow."""
     labels_x = ['Dự đoán Hợp lệ (0)', 'Dự đoán Spam (1)']
-    labels_y = ['Thực tế Spam (1)', 'Thực tế Hợp lệ (0)']
-
-    # Sắp xếp ma trận theo thứ tự hiển thị trục y từ dưới lên
-    z_values = [
-        [int(cm[1, 0]), int(cm[1, 1])],
-        [int(cm[0, 0]), int(cm[0, 1])]
-    ]
+    labels_y = ['Thực tế Hợp lệ (0)', 'Thực tế Spam (1)']
 
     annotations = [
-        [f"<b>FN (Sót Spam)</b><br>{cm[1, 0]:,} mẫu", f"<b>TP (Bắt đúng Spam)</b><br>{cm[1, 1]:,} mẫu"],
-        [f"<b>TN (Đúng Hợp lệ)</b><br>{cm[0, 0]:,} mẫu", f"<b>FP (Báo nhầm Spam)</b><br>{cm[0, 1]:,} mẫu"]
+        [f"<b>TN (Đúng Hợp lệ)</b><br>{cm[0, 0]:,} mẫu", f"<b>FP (Báo nhầm Spam)</b><br>{cm[0, 1]:,} mẫu"],
+        [f"<b>FN (Sót Spam)</b><br>{cm[1, 0]:,} mẫu", f"<b>TP (Bắt đúng Spam)</b><br>{cm[1, 1]:,} mẫu"]
     ]
 
-    fig = ff.create_annotated_heatmap(
-        z=z_values,
+    fig = px.imshow(
+        cm,
         x=labels_x,
         y=labels_y,
-        annotation_text=annotations,
-        colorscale=[[0, '#F5F3FF'], [0.5, '#C4B5FD'], [1, '#4F46E5']],
-        showscale=False
+        color_continuous_scale=[[0, '#F5F3FF'], [0.5, '#C4B5FD'], [1, '#4F46E5']],
+        labels=dict(x='Dự đoán', y='Thực tế', color='Số mẫu')
     )
+    for i in range(2):
+        for j in range(2):
+            fig.add_annotation(
+                x=labels_x[j],
+                y=labels_y[i],
+                text=annotations[i][j],
+                showarrow=False,
+                font=dict(size=12, color="#0F172A" if cm[i, j] < cm.max() * 0.6 else "#FFFFFF")
+            )
     fig.update_layout(
         title=dict(text="<b>Ma Trận Nhầm Lẫn (Confusion Matrix Heatmap)</b>", font=dict(size=14, color="#0F172A")),
         xaxis=dict(tickfont=dict(size=11, color="#334155")),
@@ -371,10 +373,9 @@ def create_plotly_confusion_matrix(cm):
         plot_bgcolor="#FFFFFF",
         paper_bgcolor="#FFFFFF",
         margin=dict(l=50, r=40, t=60, b=50),
-        height=350
+        height=350,
+        coloraxis_showscale=False
     )
-    for i in fig['layout']['annotations']:
-        i['font'] = dict(size=12, color="#0F172A")
     return fig
 
 
@@ -389,7 +390,7 @@ def create_plotly_split_chart(X_train, X_val, X_test, y_train, y_val, y_test):
         name='Email Hợp lệ (Ham)',
         x=splits,
         y=ham_counts,
-        marker=dict(color='#10B981', corner_radius=6),
+        marker=dict(color='#10B981', cornerradius=6),
         text=[f"{c:,}" for c in ham_counts],
         textposition='outside',
         hovertemplate="<b>%{x}</b><br>Hợp lệ: <b>%{y:,}</b> mẫu<extra></extra>"
@@ -398,7 +399,7 @@ def create_plotly_split_chart(X_train, X_val, X_test, y_train, y_val, y_test):
         name='Spam / Thư rác',
         x=splits,
         y=spam_counts,
-        marker=dict(color='#F43F5E', corner_radius=6),
+        marker=dict(color='#F43F5E', cornerradius=6),
         text=[f"{c:,}" for c in spam_counts],
         textposition='outside',
         hovertemplate="<b>%{x}</b><br>Spam: <b>%{y:,}</b> mẫu<extra></extra>"
@@ -439,7 +440,7 @@ def create_plotly_top_keywords(model, top_n=8):
             y=fn[spam_idx][::-1],
             x=diff[spam_idx][::-1],
             orientation='h',
-            marker=dict(color='#F43F5E', corner_radius=4),
+            marker=dict(color='#F43F5E', cornerradius=4),
             text=[f"+{v:.2f}" for v in diff[spam_idx][::-1]],
             textposition='outside',
             hovertemplate="Từ khóa: <b>%{y}</b><br>Trọng số: +%{x:.2f}<extra></extra>"
@@ -453,7 +454,7 @@ def create_plotly_top_keywords(model, top_n=8):
             y=fn[ham_idx][::-1],
             x=(-diff[ham_idx])[::-1],
             orientation='h',
-            marker=dict(color='#10B981', corner_radius=4),
+            marker=dict(color='#10B981', cornerradius=4),
             text=[f"{v:.2f}" for v in (-diff[ham_idx])[::-1]],
             textposition='outside',
             hovertemplate="Từ khóa: <b>%{y}</b><br>Trọng số: -%{x:.2f}<extra></extra>"
