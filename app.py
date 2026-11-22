@@ -323,7 +323,6 @@ def get_evaluation_metrics(_model, _X_val, _y_val, _X_test, _y_test):
     return val(_model, _X_val, _y_val), test(_model, _X_test, _y_test, display=False)
 
 
-@st.cache_resource
 def get_model():
     """Tải mô hình tiếng Việt từ đĩa (nếu chưa có thì tự huấn luyện)."""
     if os.path.exists(MODEL_PATH):
@@ -437,8 +436,8 @@ with st.sidebar:
             t0 = time.time()
             train(X_train, y_train, language='vi', model_save_path=MODEL_PATH)
             elapsed = time.time() - t0
-        get_model.clear()
         st.success(f"Hoàn tất trong {elapsed:.2f} giây!")
+        st.rerun()
 
 
 # Tải mô hình
