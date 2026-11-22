@@ -1,7 +1,7 @@
 """
 Module: src/classifier.py
 Chức năng:
-  - Khởi tạo scikit-learn Pipeline (TfidfVectorizer + MultinomialNB) tối ưu cho tiếng Anh và tiếng Việt.
+  - Khởi tạo scikit-learn Pipeline (TfidfVectorizer + MultinomialNB) tối ưu cho tiếng Việt.
   - Các hàm độc lập: train(), val(), validation(), test().
   - Lưu và nạp mô hình qua joblib: save_model(), load_model().
   - Dự đoán email mới: predict(), predict_single().
@@ -26,49 +26,22 @@ from sklearn.metrics import (
 )
 
 
-def build_pipeline(language: str = 'en') -> Pipeline:
+def build_pipeline(language: str = 'vi') -> Pipeline:
     """
     Khởi tạo scikit-learn Pipeline kết hợp trích xuất đặc trưng TF-IDF và thuật toán Multinomial Naive Bayes.
-    
-    Cấu hình chuyên biệt theo ngôn ngữ:
-      - 'en' (Tiếng Anh):
-          + TfidfVectorizer(max_features=10000, stop_words='english', lowercase=True)
-          + MultinomialNB(alpha=1.0) - Làm mịn Laplace chuẩn
-      - 'vi' (Tiếng Việt):
-          + TfidfVectorizer(max_features=10000, ngram_range=(1, 2), token_pattern=r'(?u)\\b\\w+\\b', sublinear_tf=True, lowercase=True)
-            * ngram_range=(1, 2): Bắt cụm từ ghép tiếng Việt (vd: 'khuyến mãi', 'trúng thưởng', 'ngân hàng')
-            * token_pattern: Giữ nguyên các ký tự tiếng Việt có dấu và từ đơn 1 ký tự
-            * sublinear_tf: Dùng công thức 1 + log(tf) để giảm ảnh hưởng của từ lặp lại nhiều lần
-          + MultinomialNB(alpha=0.1) - Làm mịn tối ưu cho dữ liệu tiếng Việt
-          
-    Args:
-        language (str): Mã ngôn ngữ ('en' hoặc 'vi'). Mặc định là 'en'.
-        
-    Returns:
-        Pipeline: scikit-learn Pipeline chứa 2 bước: [('tfidf', ...), ('nb', ...)].
-        
-    Raises:
-        ValueError: Nếu ngôn ngữ truyền vào không thuộc ['en', 'vi'].
+    Tối ưu hóa chuyên biệt cho văn bản tiếng Việt:
+      + TfidfVectorizer: ngram_range=(1, 2) bắt cụm từ ghép ('khuyến mãi', 'trúng thưởng', 'ngân hàng'),
+        token_pattern giữ nguyên ký tự tiếng Việt có dấu, sublinear_tf=True giảm nhiễu từ lặp.
+      + MultinomialNB: alpha=0.1 làm mịn tối ưu cho dữ liệu tiếng Việt.
     """
-    lang = language.strip().lower()
-    if lang == 'en':
-        vectorizer = TfidfVectorizer(
-            max_features=10000,
-            stop_words='english',
-            lowercase=True
-        )
-        classifier = MultinomialNB(alpha=1.0)
-    elif lang == 'vi':
-        vectorizer = TfidfVectorizer(
-            max_features=10000,
-            ngram_range=(1, 2),
-            token_pattern=r'(?u)\b\w+\b',
-            sublinear_tf=True,
-            lowercase=True
-        )
-        classifier = MultinomialNB(alpha=0.1)
-    else:
-        raise ValueError(f"Ngôn ngữ '{language}' không được hỗ trợ. Chỉ hỗ trợ 'en' hoặc 'vi'.")
+    vectorizer = TfidfVectorizer(
+        max_features=10000,
+        ngram_range=(1, 2),
+        token_pattern=r'(?u)\b\w+\b',
+        sublinear_tf=True,
+        lowercase=True
+    )
+    classifier = MultinomialNB(alpha=0.1)
 
     pipeline = Pipeline([
         ('tfidf', vectorizer),
@@ -80,7 +53,7 @@ def build_pipeline(language: str = 'en') -> Pipeline:
 def train(
     X_train: Union[pd.Series, list[str]],
     y_train: Union[pd.Series, list[int]],
-    language: str = 'en',
+    language: str = 'vi',
     model_save_path: str = None
 ) -> Pipeline:
     """
@@ -91,7 +64,7 @@ def train(
     Args:
         X_train: Tập văn bản email/tin nhắn huấn luyện.
         y_train: Tập nhãn phân loại (0: Ham, 1: Spam).
-        language: Ngôn ngữ ('en' hoặc 'vi'). Mặc định 'en'.
+        language: Ngôn ngữ (Mặc định 'vi').
         model_save_path: Đường dẫn file .joblib để lưu mô hình (tùy chọn).
         
     Returns:

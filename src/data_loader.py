@@ -1,11 +1,10 @@
 """
 Module: src/data_loader.py
 Chức năng:
-  - Nạp dữ liệu email spam tiếng Anh (Enron Spam Dataset).
   - Tự động tải và nạp bộ dữ liệu tiếng Việt (Hugging Face / Cache cục bộ).
   - Phân chia tập dữ liệu theo đúng tỷ lệ chuẩn 70% Train, 15% Validation, 15% Test
     với kỹ thuật Stratified Sampling để bảo toàn tỷ lệ nhãn.
-Dành cho: Sinh viên học tập môn Nhập môn Học máy & Khai phá dữ liệu.
+Dành cho: Sinh viên học tập môn Nhập môn Học máy & Khai phá dữ liệu (Bản Demo Tiếng Việt).
 """
 
 import io
@@ -15,8 +14,7 @@ import urllib.request
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-# Đường dẫn mặc định tới nguồn dữ liệu
-EN_DEFAULT_PATH = r"d:\Spam-Phishing-Email-Detection-with-Transformers\data\enron_spam_data.csv"
+# Nguồn dữ liệu spam tiếng Việt
 VN_DATA_SOURCES = [
     (
         "https://raw.githubusercontent.com/tabbyneko2k4/vietnamese-spam-detection/main/data/vietnamese_spam_dataset.csv",
@@ -30,47 +28,6 @@ VN_DATA_SOURCES = [
     ),
 ]
 VN_LOCAL_PATH = os.path.join("data", "vietnamese_spam.csv")
-
-
-def load_english_data(csv_path: str = EN_DEFAULT_PATH) -> pd.DataFrame:
-    """
-    Nạp dữ liệu email tiếng Anh từ file CSV Enron.
-    
-    Quy trình tiền xử lý:
-      1. Đọc file CSV chứa các cột: Message ID, Subject, Message, Spam/Ham, Date.
-      2. Nối tiêu đề (Subject) và nội dung (Message) thành chuỗi văn bản hoàn chỉnh.
-      3. Lọc bỏ các dòng hoàn toàn rỗng (cả Subject và Message đều null/trống).
-      4. Chuẩn hóa nhãn 'Spam/Ham' thành số nhị phân: 0 (Ham / Email thường), 1 (Spam / Thư rác).
-    
-    Args:
-        csv_path (str): Đường dẫn đến file CSV Enron. Mặc định là EN_DEFAULT_PATH.
-        
-    Returns:
-        pd.DataFrame: Bảng dữ liệu sạch chứa đúng 2 cột: ['text', 'label'].
-    """
-    if not os.path.exists(csv_path):
-        raise FileNotFoundError(f"Không tìm thấy file dữ liệu tiếng Anh tại: {csv_path}")
-
-    df = pd.read_csv(csv_path)
-
-    # Nối Subject và Message, điền chuỗi rỗng nếu có trường bị null
-    subject_series = df['Subject'].fillna('')
-    message_series = df['Message'].fillna('')
-    text_series = (subject_series + ' ' + message_series).astype(str).str.strip()
-
-    # Lọc bỏ các mẫu văn bản hoàn toàn rỗng
-    valid_mask = text_series.str.len() > 0
-    df_valid = df.loc[valid_mask].copy()
-
-    # Chuẩn hóa nhãn nhị phân: 1 nếu là 'spam', 0 nếu là 'ham'
-    labels = (df_valid['Spam/Ham'].astype(str).str.strip().str.lower() == 'spam').astype(int)
-
-    clean_df = pd.DataFrame({
-        'text': text_series[valid_mask].values,
-        'label': labels.values
-    }).reset_index(drop=True)
-
-    return clean_df
 
 
 def load_vietnamese_data(

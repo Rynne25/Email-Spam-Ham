@@ -1,7 +1,7 @@
 """
 Module: app.py
-Giao diện Web hiện đại (Streamlit) phục vụ trình chiếu đồ án và kiểm nghiệm
-Hệ thống Phân loại Email Spam Tiếng Anh & Tiếng Việt (TF-IDF + Multinomial Naive Bayes).
+Giao diện Web Streamlit phục vụ trình chiếu đồ án và demo phân loại Email Spam Tiếng Việt
+(TF-IDF + Multinomial Naive Bayes).
 
 Cách chạy:
     python -m streamlit run app.py
@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import streamlit as st
 
 from src.data_loader import (
-    load_english_data,
     load_vietnamese_data,
     split_dataset,
     save_splits,
@@ -31,7 +30,7 @@ from src.classifier import (
 
 # ==================== CẤU HÌNH TRANG ====================
 st.set_page_config(
-    page_title="SpamGuard AI — Phân loại Email Spam",
+    page_title="SpamGuard AI — Phân loại Email Spam Tiếng Việt",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -47,14 +46,12 @@ st.markdown(
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    /* Giảm khoảng trắng thừa trên cùng */
     .block-container {
         padding-top: 1.5rem;
         padding-bottom: 2.5rem;
         max-width: 1200px;
     }
 
-    /* Sidebar tối giản, sang trọng */
     [data-testid="stSidebar"] {
         background: #FFFFFF;
         border-right: 1px solid #E2E8F0;
@@ -81,7 +78,6 @@ st.markdown(
         color: rgba(255, 255, 255, 0.85);
     }
 
-    /* Hero Banner */
     .hero-banner {
         background: linear-gradient(125deg, #0F172A 0%, #1E1B4B 52%, #4338CA 100%);
         padding: 1.75rem 2rem;
@@ -115,7 +111,6 @@ st.markdown(
         color: #CBD5E1;
     }
 
-    /* Tabs hiện đại dạng pill */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
         background-color: #EEF2F6;
@@ -140,7 +135,6 @@ st.markdown(
         display: none;
     }
 
-    /* Card nội dung */
     .ui-card {
         background: #FFFFFF;
         border: 1px solid #E2E8F0;
@@ -150,7 +144,6 @@ st.markdown(
         margin-bottom: 1rem;
     }
 
-    /* Thẻ kết quả Spam / Ham */
     .result-box {
         border-radius: 16px;
         padding: 1.4rem 1.6rem;
@@ -186,7 +179,6 @@ st.markdown(
     .conf-spam { color: #BE123C; }
     .conf-ham  { color: #047857; }
 
-    /* Thanh xác suất hiện đại */
     .prob-card {
         background: #FFFFFF;
         border: 1px solid #E2E8F0;
@@ -219,7 +211,6 @@ st.markdown(
         border-radius: 999px;
     }
 
-    /* Keyword badges */
     .kw-badge {
         display: inline-flex;
         align-items: center;
@@ -241,7 +232,6 @@ st.markdown(
         border: 1px solid #A7F3D0;
     }
 
-    /* KPI Metric cards */
     .kpi-card {
         background: #FFFFFF;
         border: 1px solid #E2E8F0;
@@ -267,7 +257,6 @@ st.markdown(
         color: #4F46E5;
     }
 
-    /* Nút bấm bo tròn hiện đại */
     .stButton > button {
         border-radius: 10px !important;
         font-weight: 600 !important;
@@ -288,81 +277,74 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ==================== ĐƯỜNG DẪN & MẪU THỬ ====================
-MODEL_PATHS = {
-    'vi': os.path.join('models', 'model_vi.joblib'),
-    'en': os.path.join('models', 'model_en.joblib'),
-}
-
-SPLIT_DIRS = {
-    'vi': os.path.join('data', 'vi'),
-    'en': os.path.join('data', 'en'),
-}
+# ==================== ĐƯỜNG DẪN & MẪU THỬ TIẾNG VIỆT ====================
+MODEL_PATH = os.path.join('models', 'model_vi.joblib')
+SPLIT_DIR = os.path.join('data', 'vi')
 
 QUICK_SAMPLES = {
-    'vi': {
-        '🚨 Spam Trúng thưởng': (
-            "Chúc mừng quý khách đã trúng thưởng 50.000.000 VNĐ từ chương trình tri ân khách hàng! "
-            "Vui lòng nhấn vào đường link ngay hôm nay để nhận quà miễn phí."
-        ),
-        '🚨 Spam Ngân hàng': (
-            "KHẨN CẤP: Tài khoản ngân hàng của bạn đang bị tạm khóa do giao dịch bất thường. "
-            "Truy cập ngay đường dẫn xác minh mã OTP trong 24h để mở khóa tài khoản."
-        ),
-        '✅ Email Họp nhóm': (
-            "Chào các bạn, sáng thứ 5 tuần này lúc 9h nhóm mình họp tại phòng B203 để rà soát tiến độ "
-            "đồ án cuối kỳ nhé. Nhớ mang theo slide báo cáo."
-        ),
-        '✅ Email Học tập': (
-            "Thưa thầy, em gửi thầy file báo cáo và mã nguồn bài tập tuần 6 ạ. "
-            "Em cảm ơn thầy đã xem bài."
-        ),
-    },
-    'en': {
-        '🚨 Lottery Spam': (
-            "CONGRATULATIONS! You have been selected as our lucky winner of a $1,000,000 cash prize! "
-            "Click here immediately to claim your free reward now."
-        ),
-        '🚨 Phishing Alert': (
-            "URGENT: Your bank account has been suspended due to unauthorized login attempts. "
-            "Verify your password and credit card details immediately to restore access."
-        ),
-        '✅ Work Meeting': (
-            "Hi team, please find attached the agenda for tomorrow's quarterly project review at 10 AM. "
-            "Let me know if you have any items to add."
-        ),
-        '✅ Academic Email': (
-            "Dear Professor, I have submitted my assignment report for Week 5 on the portal. "
-            "Please let me know if any additional files are needed. Best regards."
-        ),
-    },
+    '🚨 Spam Trúng thưởng': (
+        "Chúc mừng quý khách đã trúng thưởng 50.000.000 VNĐ từ chương trình tri ân khách hàng! "
+        "Vui lòng nhấn vào đường link ngay hôm nay để nhận quà miễn phí."
+    ),
+    '🚨 Spam Ngân hàng': (
+        "KHẨN CẤP: Tài khoản ngân hàng của bạn đang bị tạm khóa do giao dịch bất thường. "
+        "Truy cập ngay đường dẫn xác minh mã OTP trong 24h để mở khóa tài khoản."
+    ),
+    '🚨 Spam Tuyển dụng': (
+        "Tuyển cộng tác viên online làm việc tại nhà, xử lý đơn hàng Shopee và Lazada. "
+        "Thu nhập 500k - 1.5 triệu/ngày, nhận tiền ngay trong ngày, không cọc vốn. Nhắn Zalo 0987xxx để nhận việc ngay."
+    ),
+    '🚨 Spam Vay tín dụng': (
+        "Ngân hàng hỗ trợ vay tiêu dùng giải ngân từ 20 đến 100 triệu, lãi suất 0%, không thẩm định người thân, "
+        "chấp nhận nợ xấu, nhận tiền sau 15 phút. Nhấn vào link vaytiennhanh.vn để đăng ký."
+    ),
+    '🚨 Spam Giả mạo Giao hàng': (
+        "GiaoHangTietKiem: Đơn hàng #VN89214 của bạn không thể phát do sai địa chỉ nhận hàng. "
+        "Vui lòng truy cập ghtk-xacminh.com để cập nhật lại thông tin trong 12 giờ tránh bị hoàn đơn."
+    ),
+    '✅ Email Họp nhóm': (
+        "Chào các bạn, sáng thứ 5 tuần này lúc 9h nhóm mình họp tại phòng B203 để rà soát tiến độ "
+        "đồ án cuối kỳ nhé. Nhớ mang theo slide báo cáo."
+    ),
+    '✅ Email Học tập': (
+        "Thưa thầy, em gửi thầy file báo cáo và mã nguồn bài tập tuần 6 ạ. "
+        "Em cảm ơn thầy đã xem bài."
+    ),
+    '✅ Email Công việc': (
+        "Kính gửi phòng ban liên quan, tôi xin gửi biên bản cuộc họp tổng kết tuần vừa qua "
+        "cùng danh sách công việc cần hoàn thành trước thứ Sáu. Trân trọng."
+    ),
 }
-
-
-@st.cache_resource
-def get_model(lang: str):
-    """Tải mô hình từ đĩa (nếu chưa có thì tự huấn luyện)."""
-    model_path = MODEL_PATHS[lang]
-    if os.path.exists(model_path):
-        return load_model(model_path)
-    X_train, _, _, y_train, _, _ = get_splits(lang)
-    return train(X_train, y_train, language=lang, model_save_path=model_path)
 
 
 @st.cache_data
-def get_splits(lang: str):
-    """Tải 3 tập train.csv, val.csv, test.csv (nếu chưa có thì tự tách và lưu)."""
-    split_dir = SPLIT_DIRS[lang]
-    train_file = os.path.join(split_dir, 'train.csv')
-    val_file = os.path.join(split_dir, 'val.csv')
-    test_file = os.path.join(split_dir, 'test.csv')
+def get_evaluation_metrics(_model, _X_val, _y_val, _X_test, _y_test):
+    """Tính toán và cache kết quả đánh giá để chuyển tab mượt mà."""
+    return val(_model, _X_val, _y_val), test(_model, _X_test, _y_test, display=False)
+
+
+@st.cache_resource
+def get_model():
+    """Tải mô hình tiếng Việt từ đĩa (nếu chưa có thì tự huấn luyện)."""
+    if os.path.exists(MODEL_PATH):
+        return load_model(MODEL_PATH)
+    X_train, _, _, y_train, _, _ = get_splits()
+    return train(X_train, y_train, language='vi', model_save_path=MODEL_PATH)
+
+
+@st.cache_data
+def get_splits():
+    """Tải 3 tập train.csv, val.csv, test.csv tiếng Việt (nếu chưa có thì tự tách và lưu)."""
+    train_file = os.path.join(SPLIT_DIR, 'train.csv')
+    val_file = os.path.join(SPLIT_DIR, 'val.csv')
+    test_file = os.path.join(SPLIT_DIR, 'test.csv')
 
     if os.path.exists(train_file) and os.path.exists(val_file) and os.path.exists(test_file):
-        return load_splits(split_dir)
+        return load_splits(SPLIT_DIR)
 
-    df = load_english_data() if lang == 'en' else load_vietnamese_data()
+    df = load_vietnamese_data()
     splits = split_dataset(df, random_state=42)
-    save_splits(*splits, output_dir=split_dir)
+    save_splits(*splits, output_dir=SPLIT_DIR)
     return splits
 
 
@@ -429,48 +411,45 @@ def plot_confusion_matrix(cm, title: str):
     return fig
 
 
-# ==================== SIDEBAR TỐI GIẢN ====================
+# ==================== SIDEBAR THUẦN VIỆT ====================
 with st.sidebar:
     st.markdown(
         """
         <div class="brand-box">
             <h2>🛡️ SpamGuard AI</h2>
-            <p>Phân loại Email Spam • Anh & Việt</p>
+            <p>Phân loại Email Spam Tiếng Việt</p>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    lang_label = st.radio(
-        "🌐 Ngôn ngữ kiểm nghiệm",
-        options=["🇻🇳 Tiếng Việt", "🇬🇧 Tiếng Anh"],
-        index=0,
-    )
-    lang = 'vi' if "Tiếng Việt" in lang_label else 'en'
-
-    X_train, X_val, X_test, y_train, y_val, y_test = get_splits(lang)
+    X_train, X_val, X_test, y_train, y_val, y_test = get_splits()
     total = len(X_train) + len(X_val) + len(X_test)
+
+    st.markdown(f"**📊 Phân bổ dữ liệu tiếng Việt ({total:,} mẫu):**")
+    st.caption(f"• Tập Huấn luyện (Train): {len(X_train):,} mẫu (70%)")
+    st.caption(f"• Tập Kiểm định (Val): {len(X_val):,} mẫu (15%)")
+    st.caption(f"• Tập Kiểm thử (Test): {len(X_test):,} mẫu (15%)")
 
     st.markdown("<div style='height: 0.75rem;'></div>", unsafe_allow_html=True)
     if st.button("🔄 Huấn luyện lại mô hình", use_container_width=True):
         with st.spinner("Đang huấn luyện lại mô hình..."):
             t0 = time.time()
-            train(X_train, y_train, language=lang, model_save_path=MODEL_PATHS[lang])
+            train(X_train, y_train, language='vi', model_save_path=MODEL_PATH)
             elapsed = time.time() - t0
         get_model.clear()
         st.success(f"Hoàn tất trong {elapsed:.2f} giây!")
 
 
-# Tải mô hình theo ngôn ngữ đang chọn
-model = get_model(lang)
-lang_display = "Tiếng Việt (Vietnamese)" if lang == 'vi' else "Tiếng Anh (English)"
+# Tải mô hình
+model = get_model()
 
 # ==================== HERO BANNER ====================
 st.markdown(
-    f"""
+    """
     <div class="hero-banner">
-        <div class="hero-pill">TF-IDF + Multinomial Naive Bayes • {lang_display}</div>
-        <h1 class="hero-title">Hệ thống Nhận diện & Kiểm nghiệm Email Spam</h1>
+        <div class="hero-pill">TF-IDF + Multinomial Naive Bayes • Tiếng Việt</div>
+        <h1 class="hero-title">Hệ thống Nhận diện & Kiểm nghiệm Email Spam Tiếng Việt</h1>
         <p class="hero-sub">
             Phân tích nội dung email theo thời gian thực, hiển thị xác suất chi tiết, từ khóa nghi vấn và đánh giá chuẩn Train / Val / Test.
         </p>
@@ -488,28 +467,35 @@ tab_demo, tab_eval, tab_data = st.tabs([
 
 # ==================== TAB 1: LIVE DEMO ====================
 with tab_demo:
-    state_key = f"email_input_{lang}"
+    state_key = "email_input_vi"
     if state_key not in st.session_state:
         st.session_state[state_key] = ""
 
-    st.markdown("**⚡ Chọn nhanh mẫu thử để trình chiếu:**")
-    sample_cols = st.columns(len(QUICK_SAMPLES[lang]))
-    for col, (btn_label, sample_text) in zip(sample_cols, QUICK_SAMPLES[lang].items()):
+    st.markdown("**⚡ Chọn nhanh mẫu thử để trình chiếu demo:**")
+    sample_items = list(QUICK_SAMPLES.items())
+
+    # Hàng 1: 4 mẫu
+    cols_row1 = st.columns(4)
+    for col, (btn_label, sample_text) in zip(cols_row1, sample_items[:4]):
         with col:
-            if st.button(btn_label, use_container_width=True, key=f"btn_{lang}_{btn_label}"):
+            if st.button(btn_label, use_container_width=True, key=f"btn_{btn_label}"):
                 st.session_state[state_key] = sample_text
+                st.rerun()
+
+    # Hàng 2: 4 mẫu tiếp theo
+    cols_row2 = st.columns(4)
+    for col, (btn_label, sample_text) in zip(cols_row2, sample_items[4:]):
+        with col:
+            if st.button(btn_label, use_container_width=True, key=f"btn_{btn_label}"):
+                st.session_state[state_key] = sample_text
+                st.rerun()
 
     email_text = st.text_area(
         "✉️ Nội dung Email / Tin nhắn cần kiểm tra",
-        value=st.session_state[state_key],
+        key=state_key,
         height=165,
-        placeholder=(
-            "Dán nội dung email tiếng Việt vào đây để hệ thống phân tích..."
-            if lang == 'vi'
-            else "Paste English email content here for instant spam analysis..."
-        ),
+        placeholder="Dán nội dung email tiếng Việt vào đây để hệ thống phân tích...",
     )
-    st.session_state[state_key] = email_text
 
     col_act1, col_act2, _ = st.columns([1.2, 0.9, 3])
     with col_act1:
@@ -528,7 +514,6 @@ with tab_demo:
             prob_ham = result['probabilities']['Ham'] * 100
             is_spam = result['prediction'] == 1
 
-            # Thẻ kết quả chính
             if is_spam:
                 st.markdown(
                     f"""
@@ -556,7 +541,6 @@ with tab_demo:
                     unsafe_allow_html=True,
                 )
 
-            # Thanh xác suất hiện đại
             p1, p2 = st.columns(2)
             with p1:
                 st.markdown(
@@ -589,7 +573,6 @@ with tab_demo:
                     unsafe_allow_html=True,
                 )
 
-            # Phân tích từ khóa nghi vấn
             st.markdown("<div style='height: 0.9rem;'></div>", unsafe_allow_html=True)
             st.markdown("#### 🔎 Phân tích từ khóa ảnh hưởng đến quyết định")
             keywords = explain_prediction(model, email_text, top_k=10)
@@ -629,8 +612,7 @@ with tab_demo:
 
 # ==================== TAB 2: EVALUATION ====================
 with tab_eval:
-    val_metrics = val(model, X_val, y_val)
-    test_metrics = test(model, X_test, y_test, display=False)
+    val_metrics, test_metrics = get_evaluation_metrics(model, X_val, y_val, X_test, y_test)
 
     st.markdown("#### 🎯 Kết quả trên tập Kiểm thử độc lập (`test()`)")
     render_kpi_row(test_metrics, highlight_f1=True)
@@ -645,7 +627,7 @@ with tab_eval:
         st.markdown("#### 📐 Ma trận nhầm lẫn (Confusion Matrix)")
         fig = plot_confusion_matrix(
             test_metrics['confusion_matrix'],
-            title=f"Test Set ({'Tiếng Việt' if lang == 'vi' else 'Tiếng Anh'})",
+            title="Test Set (Tiếng Việt)",
         )
         st.pyplot(fig, use_container_width=True)
         plt.close(fig)
@@ -658,7 +640,7 @@ with tab_eval:
         split_summary = pd.DataFrame([
             {
                 'Tập': 'Train',
-                'File': f'data/{lang}/train.csv',
+                'File': 'data/vi/train.csv',
                 'Số mẫu': len(X_train),
                 'Tỷ lệ': f"{len(X_train)/total*100:.1f}%",
                 'Spam': int(y_train.sum()),
@@ -666,7 +648,7 @@ with tab_eval:
             },
             {
                 'Tập': 'Validation',
-                'File': f'data/{lang}/val.csv',
+                'File': 'data/vi/val.csv',
                 'Số mẫu': len(X_val),
                 'Tỷ lệ': f"{len(X_val)/total*100:.1f}%",
                 'Spam': int(y_val.sum()),
@@ -674,7 +656,7 @@ with tab_eval:
             },
             {
                 'Tập': 'Test',
-                'File': f'data/{lang}/test.csv',
+                'File': 'data/vi/test.csv',
                 'Số mẫu': len(X_test),
                 'Tỷ lệ': f"{len(X_test)/total*100:.1f}%",
                 'Spam': int(y_test.sum()),
@@ -687,11 +669,11 @@ with tab_eval:
 # ==================== TAB 3: DATASET & RANDOM TEST CHECK ====================
 with tab_data:
     st.markdown("#### 🎲 Đối chiếu nhanh 10 mẫu ngẫu nhiên từ tập `test.csv`")
-    seed_key = f"sample_seed_{lang}"
+    seed_key = "sample_seed_vi"
     if seed_key not in st.session_state:
         st.session_state[seed_key] = 42
 
-    if st.button("🔀 Đổi 10 mẫu Test ngẫu nhiên khác", key=f"rand_{lang}"):
+    if st.button("🔀 Đổi 10 mẫu Test ngẫu nhiên khác", key="rand_vi"):
         st.session_state[seed_key] += 1
 
     test_df = pd.DataFrame({'text': X_test.values, 'label': y_test.values})
@@ -712,9 +694,9 @@ with tab_data:
     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
     st.markdown("<div style='height: 0.8rem;'></div>", unsafe_allow_html=True)
-    st.markdown("#### 📂 Xem dữ liệu trong các file CSV")
+    st.markdown("#### 📂 Xem dữ liệu trong các file CSV Tiếng Việt")
     split_choice = st.selectbox("Chọn tập dữ liệu:", ["train.csv", "val.csv", "test.csv"])
-    file_to_view = os.path.join(SPLIT_DIRS[lang], split_choice)
+    file_to_view = os.path.join(SPLIT_DIR, split_choice)
     if os.path.exists(file_to_view):
         preview_df = pd.read_csv(file_to_view).head(20)
         preview_df['Nhãn'] = preview_df['label'].map({0: 'Ham (0)', 1: 'Spam (1)'})
