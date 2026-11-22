@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SpamGuard AI — Phân loại Email Spam Tiếng Việt (Liquid Glass)</title>
+  
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            obsidian: '#080B12',
+            surface: 'rgba(15, 23, 42, 0.65)',
+            accent: '#6366F1',
+            emeraldGlow: '#10B981',
+            crimsonGlow: '#F43F5E',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Plotly.js CDN -->
+  <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* ==================== LIQUID GLASS DESIGN SYSTEM (iOS 26 / Web) ==================== */
+    body {
+      background-color: #07090E;
+      color: #F1F5F9;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* Ambient dynamic background lighting */
+    .ambient-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+    .ambient-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.28;
+      animation: floatOrb 18s ease-in-out infinite alternate;
+    }
+    .orb-1 { width: 550px; height: 550px; background: #4F46E5; top: -100px; left: -100px; }
+    .orb-2 { width: 600px; height: 600px; background: #06B6D4; bottom: -150px; right: -100px; animation-duration: 22s; }
+    .orb-3 { width: 450px; height: 450px; background: #F43F5E; top: 40%; left: 35%; opacity: 0.16; animation-duration: 26s; }
+
+    @keyframes floatOrb {
+      0% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(40px, 30px) scale(1.08); }
+      100% { transform: translate(-30px, 50px) scale(0.96); }
+    }
+
+    /* Glass Effect Container */
+    .glass-card {
+      background: rgba(13, 19, 33, 0.68);
+      backdrop-filter: blur(24px) saturate(190%);
+      -webkit-backdrop-filter: blur(24px) saturate(190%);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 
+        inset 0 1px 1px 0 rgba(255, 255, 255, 0.12),
+        0 20px 40px -15px rgba(0, 0, 0, 0.6);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .glass-card:hover {
+      border-color: rgba(255, 255, 255, 0.16);
+      box-shadow: 
+        inset 0 1px 2px 0 rgba(255, 255, 255, 0.2),
+        0 24px 48px -12px rgba(0, 0, 0, 0.7);
+    }
+
+    .glass-pill {
+      background: rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      transition: all 0.2s ease;
+    }
+    .glass-pill:hover {
+      background: rgba(255, 255, 255, 0.09);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
+    }
+
+    /* Morphing Verdict State Transitions */
+    .verdict-morph {
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .verdict-idle {
+      background: rgba(15, 23, 42, 0.4);
+      border: 1px dashed rgba(255, 255, 255, 0.12);
+    }
+    .verdict-spam {
+      background: radial-gradient(circle at 10% 20%, rgba(244, 63, 94, 0.22) 0%, rgba(15, 23, 42, 0.8) 90%);
+      border: 1px solid rgba(244, 63, 94, 0.45);
+      box-shadow: 0 0 35px -5px rgba(244, 63, 94, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.25);
+    }
+    .verdict-ham {
+      background: radial-gradient(circle at 10% 20%, rgba(16, 185, 129, 0.22) 0%, rgba(15, 23, 42, 0.8) 90%);
+      border: 1px solid rgba(16, 185, 129, 0.45);
+      box-shadow: 0 0 35px -5px rgba(16, 185, 129, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.25);
+    }
+
+    /* Liquid Dual Capsule Track */
+    .liquid-track {
+      background: rgba(2, 6, 23, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 999px;
+      position: relative;
+      overflow: hidden;
+      height: 12px;
+    }
+    .liquid-fill-spam {
+      background: linear-gradient(90deg, #F43F5E, #FB7185);
+      box-shadow: 0 0 12px rgba(244, 63, 94, 0.6);
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .liquid-fill-ham {
+      background: linear-gradient(90deg, #10B981, #34D399);
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.6);
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.28); }
+  </style>
+</head>
+<body class="relative">
+
+  <!-- Ambient Dynamic Background -->
+  <div class="ambient-bg">
+    <div class="ambient-orb orb-1"></div>
+    <div class="ambient-orb orb-2"></div>
+    <div class="ambient-orb orb-3"></div>
+  </div>
+
+  <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- Top Glass Navigation Bar -->
+    <header class="glass-card rounded-2xl p-4 sm:p-5 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3.5">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+          <i data-lucide="shield-check" class="w-6 h-6 text-white"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2.5">
+            <h1 class="text-xl sm:text-2xl font-extrabold tracking-tight text-white">SpamGuard AI</h1>
+            <span class="px-2.5 py-0.5 text-xs font-bold rounded-full bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
+              Liquid Glass Edition
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 mt-0.5 font-medium">Hệ thống phân loại email Spam tiếng Việt • TF-IDF + Multinomial Naive Bayes</p>
+        </div>
+      </div>
+
+      <!-- Tab Switcher Navigation -->
+      <nav class="flex items-center p-1.5 rounded-xl bg-slate-950/60 border border-white/5 space-x-1">
+        <button id="tab-btn-inference" onclick="switchTab('inference')" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 bg-indigo-600 text-white shadow-md shadow-indigo-600/30">
+          <i data-lucide="zap" class="w-4 h-4"></i>
+          <span>Kiểm Thử Thực Tế</span>
+        </button>
+        <button id="tab-btn-analytics" onclick="switchTab('analytics')" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5">
+          <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+          <span>Trung Tâm Phân Tích & Biểu Đồ</span>
+        </button>
+      </nav>
+    </header>
+
+    <!-- ==================== TAB 1: LIVE INFERENCE WORKSPACE ==================== -->
+    <main id="tab-inference" class="space-y-6">
+
+      <!-- Preset Sample Chips -->
+      <section class="glass-card rounded-2xl p-5">
+        <div class="flex items-center justify-between mb-3.5">
+          <div class="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
+            <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
+            <span>Mẫu Thử Nhanh (Click để nạp & tự động phân tích)</span>
+          </div>
+          <span class="text-xs text-slate-500">Live Real-time Scanner Active</span>
+        </div>
+
+        <div class="space-y-3">
+          <!-- Spam Presets -->
+          <div>
+            <div class="text-[11px] font-semibold text-rose-400/90 mb-1.5 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+              <span>Mẫu Thư Rác / Lừa Đảo / Phishing:</span>
+            </div>
+            <div class="flex flex-wrap gap-2" id="spam-chips-container">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <!-- Ham Presets -->
+          <div>
+            <div class="text-[11px] font-semibold text-emerald-400/90 mb-1.5 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span>Mẫu Thư Hợp Lệ / Thông Thường:</span>
+            </div>
+            <div class="flex flex-wrap gap-2" id="ham-chips-container">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Input & Prediction Split Workspace -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        <!-- Left: Text Area Input -->
+        <section class="lg:col-span-7 glass-card rounded-2xl p-5 sm:p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <label for="email-input" class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+              <i data-lucide="mail" class="w-4 h-4 text-indigo-400"></i>
+              <span>Nội Dung Email Cần Kiểm Tra</span>
+            </label>
+            <span id="char-counter" class="text-xs font-mono text-slate-500">0 ký tự</span>
+          </div>
+
+          <div class="relative">
+            <textarea
+              id="email-input"
+              rows="7"
+              placeholder="Dán hoặc gõ nội dung email tiếng Việt vào đây (hệ thống tự động quét và phân loại theo thời gian thực)..."
+              class="w-full bg-slate-950/70 border border-white/10 rounded-xl p-4 text-slate-200 placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all font-sans leading-relaxed"
+            ></textarea>
+            <div id="typing-indicator" class="hidden absolute bottom-3 right-3 flex items-center gap-1.5 px-2 py-1 rounded-md bg-indigo-500/20 border border-indigo-500/30 text-[10px] text-indigo-300 font-mono">
+              <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping"></span>
+              <span>Đang phân tích...</span>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3 pt-1">
+            <button
+              id="btn-manual-predict"
+              onclick="triggerPrediction()"
+              class="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-semibold text-sm shadow-lg shadow-indigo-600/30 transition-all duration-200 active:scale-95"
+            >
+              <i data-lucide="send" class="w-4 h-4"></i>
+              <span>Phân Loại Ngay</span>
+            </button>
+            <button
+              onclick="clearInput()"
+              class="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white font-semibold text-sm border border-white/5 transition-all duration-200"
+            >
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+              <span>Xóa Nội Dung</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- Right: Morphing Verdict Card & Indicators -->
+        <section class="lg:col-span-5 space-y-4">
+
+          <!-- Morphing Result Container -->
+          <div id="verdict-container" class="verdict-morph verdict-idle rounded-2xl p-6 min-h-[175px] flex flex-col justify-between">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <span id="verdict-badge" class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-slate-800 text-slate-400 border border-white/5 mb-2">
+                  Trạng Thái Chờ
+                </span>
+                <h3 id="verdict-title" class="text-xl font-extrabold text-slate-300 tracking-tight">Chưa có dữ liệu</h3>
+                <p id="verdict-desc" class="text-xs text-slate-400 mt-1 leading-relaxed">
+                  Nhập nội dung email hoặc chọn một mẫu thử phía trên để hệ thống quét và đưa ra kết luận.
+                </p>
+              </div>
+              <div id="confidence-box" class="hidden text-right">
+                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Độ Tin Cậy</div>
+                <div id="confidence-val" class="font-mono text-2xl font-extrabold text-white">0.0%</div>
+              </div>
+            </div>
+
+            <!-- Mini State Indicator -->
+            <div class="pt-4 border-t border-white/5 flex items-center justify-between text-xs text-slate-400">
+              <span class="flex items-center gap-2">
+                <span id="verdict-dot" class="w-2.5 h-2.5 rounded-full bg-slate-600"></span>
+                <span id="verdict-label-meta">Chế độ: Động (Live Inference)</span>
+              </span>
+              <span id="verdict-model-meta" class="font-mono text-[11px] text-slate-500">TF-IDF + Naive Bayes</span>
+            </div>
+          </div>
+
+          <!-- Dual Liquid Capsule Probability Bar -->
+          <div class="glass-card rounded-2xl p-5 space-y-3">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+              <span>Xác Suất Dự Đoán (Class Probabilities)</span>
+              <span class="font-mono text-indigo-400 text-[11px]">Normalized</span>
+            </div>
+
+            <div class="space-y-3 pt-1">
+              <!-- Spam Prob -->
+              <div>
+                <div class="flex justify-between text-xs mb-1 font-semibold">
+                  <span class="text-rose-400 flex items-center gap-1.5">
+                    <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+                    <span>Xác suất SPAM (Thư rác)</span>
+                  </span>
+                  <span id="prob-spam-txt" class="font-mono text-white text-sm font-bold">0.0%</span>
+                </div>
+                <div class="liquid-track">
+                  <div id="prob-spam-bar" class="liquid-fill-spam" style="width: 0%;"></div>
+                </div>
+              </div>
+
+              <!-- Ham Prob -->
+              <div>
+                <div class="flex justify-between text-xs mb-1 font-semibold">
+                  <span class="text-emerald-400 flex items-center gap-1.5">
+                    <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+                    <span>Xác suất HỢP LỆ (Ham)</span>
+                  </span>
+                  <span id="prob-ham-txt" class="font-mono text-white text-sm font-bold">0.0%</span>
+                </div>
+                <div class="liquid-track">
+                  <div id="prob-ham-bar" class="liquid-fill-ham" style="width: 0%;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </section>
+
+      </div>
+
+      <!-- Keyword Impact Analysis Section -->
+      <section class="glass-card rounded-2xl p-5 sm:p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2 text-xs font-bold text-slate-300 uppercase tracking-wider">
+            <i data-lucide="cpu" class="w-4 h-4 text-cyan-400"></i>
+            <span>Giải Thích Trọng Số Từ Khóa Đóng Góp (Feature Importance)</span>
+          </div>
+          <span class="text-xs text-slate-500 font-mono">TF-IDF × Log-Odds Ratio</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+          <!-- Spam Push Keywords -->
+          <div class="space-y-2">
+            <div class="text-xs font-bold text-rose-400 uppercase tracking-wider flex items-center gap-1.5">
+              <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>
+              <span>Từ Khóa Kéo Về SPAM (+)</span>
+            </div>
+            <div id="kw-spam-list" class="space-y-1.5">
+              <div class="text-xs text-slate-500 italic py-3">Chưa có từ khóa nghi vấn.</div>
+            </div>
+          </div>
+
+          <!-- Ham Push Keywords -->
+          <div class="space-y-2">
+            <div class="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+              <i data-lucide="trending-down" class="w-3.5 h-3.5"></i>
+              <span>Từ Khóa Kéo Về HỢP LỆ (-)</span>
+            </div>
+            <div id="kw-ham-list" class="space-y-1.5">
+              <div class="text-xs text-slate-500 italic py-3">Chưa có từ khóa an toàn.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ==================== TAB 2: DEEP ANALYTICS & CHARTS ==================== -->
+    <main id="tab-analytics" class="space-y-6 hidden">
+
+      <!-- 4 Top KPI Glow Cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="glass-card rounded-2xl p-5 relative overflow-hidden group">
+          <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-indigo-500/10 rounded-full blur-xl group-hover:bg-indigo-500/20 transition-all"></div>
+          <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Accuracy (Tổng quan)</div>
+          <div id="kpi-acc" class="text-3xl font-extrabold font-mono text-white">--%</div>
+          <div class="text-[11px] text-indigo-400 font-semibold mt-1 flex items-center gap-1">
+            <i data-lucide="check-circle" class="w-3 h-3"></i>
+            <span>Tập kiểm thử độc lập</span>
+          </div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-5 relative overflow-hidden group">
+          <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-cyan-500/10 rounded-full blur-xl group-hover:bg-cyan-500/20 transition-all"></div>
+          <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Precision (Spam)</div>
+          <div id="kpi-prec" class="text-3xl font-extrabold font-mono text-cyan-400">--%</div>
+          <div class="text-[11px] text-slate-400 font-medium mt-1">Độ chuẩn xác khi báo Spam</div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-5 relative overflow-hidden group">
+          <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-500/20 transition-all"></div>
+          <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Recall (Độ nhạy Spam)</div>
+          <div id="kpi-rec" class="text-3xl font-extrabold font-mono text-emerald-400">--%</div>
+          <div class="text-[11px] text-slate-400 font-medium mt-1">Tỷ lệ bắt trúng mẫu thư rác</div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-5 relative overflow-hidden group">
+          <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-rose-500/10 rounded-full blur-xl group-hover:bg-rose-500/20 transition-all"></div>
+          <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">F1-Score</div>
+          <div id="kpi-f1" class="text-3xl font-extrabold font-mono text-rose-400">--%</div>
+          <div class="text-[11px] text-slate-400 font-medium mt-1">Trung bình điều hòa chuẩn</div>
+        </div>
+      </div>
+
+      <!-- Charts Row 1: Confusion Matrix & Metrics Bar -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-6 glass-card rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="text-sm font-bold text-white flex items-center gap-2">
+              <i data-lucide="grid" class="w-4 h-4 text-indigo-400"></i>
+              <span>Ma Trận Nhầm Lẫn (Confusion Matrix Heatmap)</span>
+            </h4>
+            <span class="text-xs font-mono text-slate-500">Test Set (702 mẫu)</span>
+          </div>
+          <div id="chart-confusion-matrix" class="w-full h-[320px]"></div>
+        </div>
+
+        <div class="lg:col-span-6 glass-card rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="text-sm font-bold text-white flex items-center gap-2">
+              <i data-lucide="bar-chart-2" class="w-4 h-4 text-emerald-400"></i>
+              <span>Đối Chiếu 4 Chỉ Số Hiệu Năng Chuẩn</span>
+            </h4>
+            <span class="text-xs font-mono text-slate-500">Tỷ lệ phần trăm (%)</span>
+          </div>
+          <div id="chart-metrics-bars" class="w-full h-[320px]"></div>
+        </div>
+      </div>
+
+      <!-- Charts Row 2: Top Keywords & Dataset Splits -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-7 glass-card rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="text-sm font-bold text-white flex items-center gap-2">
+              <i data-lucide="list-filter" class="w-4 h-4 text-cyan-400"></i>
+              <span>Top Từ Khóa Đặc Trưng Nhất (Spam vs Hợp Lệ)</span>
+            </h4>
+            <span class="text-xs font-mono text-slate-500">Log-Odds</span>
+          </div>
+          <div id="chart-top-keywords" class="w-full h-[340px]"></div>
+        </div>
+
+        <div class="lg:col-span-5 glass-card rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="text-sm font-bold text-white flex items-center gap-2">
+              <i data-lucide="pie-chart" class="w-4 h-4 text-amber-400"></i>
+              <span>Phân Bổ Dữ Liệu 3 Tập (Stratified Split)</span>
+            </h4>
+            <span class="text-xs font-mono text-slate-500">70 / 15 / 15%</span>
+          </div>
+          <div id="chart-splits" class="w-full h-[340px]"></div>
+        </div>
+      </div>
+
+      <!-- Live Test Set Validator Table -->
+      <section class="glass-card rounded-2xl p-5 sm:p-6 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h4 class="text-sm font-bold text-white flex items-center gap-2">
+              <i data-lucide="shuffle" class="w-4 h-4 text-indigo-400"></i>
+              <span>Đối Chiếu 10 Mẫu Thử Ngẫu Nhiên Từ Tập Kiểm Thử (test.csv)</span>
+            </h4>
+            <p class="text-xs text-slate-400 mt-0.5">Xác minh trực tiếp độ tin cậy của thuật toán trên dữ liệu chưa từng thấy</p>
+          </div>
+          <button
+            onclick="loadRandomTests()"
+            class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 font-semibold text-xs border border-indigo-500/30 transition-all self-start sm:self-auto"
+          >
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            <span>Đổi 10 Mẫu Khác</span>
+          </button>
+        </div>
+
+        <div class="overflow-x-auto rounded-xl border border-white/5">
+          <table class="w-full text-left text-xs text-slate-300">
+            <thead class="bg-slate-950/80 text-slate-400 font-semibold uppercase tracking-wider text-[10px] border-b border-white/5">
+              <tr>
+                <th class="py-3 px-4">Nội dung mẫu email</th>
+                <th class="py-3 px-3 text-center">Nhãn thực tế</th>
+                <th class="py-3 px-3 text-center">Dự đoán</th>
+                <th class="py-3 px-3 text-right">Độ tin cậy</th>
+                <th class="py-3 px-3 text-center">Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody id="random-tests-tbody" class="divide-y divide-white/5 font-sans">
+              <tr>
+                <td colspan="5" class="py-6 text-center text-slate-500">Đang tải dữ liệu kiểm thử...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Classification Report Monospace View -->
+      <section class="glass-card rounded-2xl p-5 sm:p-6 space-y-3">
+        <div class="flex items-center justify-between">
+          <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+            <i data-lucide="file-text" class="w-4 h-4 text-slate-400"></i>
+            <span>Báo Cáo Đánh Giá Chi Tiết (scikit-learn Classification Report)</span>
+          </h4>
+          <span class="text-xs font-mono text-slate-500">Digits: 4</span>
+        </div>
+        <pre id="classification-report-text" class="bg-slate-950/80 border border-white/5 rounded-xl p-4 font-mono text-xs text-slate-300 overflow-x-auto leading-relaxed">Đang tải...</pre>
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- Client Application Script -->
+  <script>
+    // Lucide Icons Init
+    lucide.createIcons();
+
+    let debounceTimer = null;
+    let cachedMetrics = null;
+
+    // ==================== TAB SWITCHING ====================
+    function switchTab(tab) {
+      const tabInference = document.getElementById('tab-inference');
+      const tabAnalytics = document.getElementById('tab-analytics');
+      const btnInference = document.getElementById('tab-btn-inference');
+      const btnAnalytics = document.getElementById('tab-btn-analytics');
+
+      if (tab === 'inference') {
+        tabInference.classList.remove('hidden');
+        tabAnalytics.classList.add('hidden');
+
+        btnInference.className = "flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 bg-indigo-600 text-white shadow-md shadow-indigo-600/30";
+        btnAnalytics.className = "flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5";
+      } else {
+        tabInference.classList.add('hidden');
+        tabAnalytics.classList.remove('hidden');
+
+        btnAnalytics.className = "flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 bg-indigo-600 text-white shadow-md shadow-indigo-600/30";
+        btnInference.className = "flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5";
+
+        // Render charts once tab is visible
+        if (cachedMetrics) {
+          renderAnalyticsCharts(cachedMetrics);
+        } else {
+          fetchMetrics();
+        }
+      }
+    }
+
+    // ==================== SAMPLES & CHIPS ====================
+    async function loadSamples() {
+      try {
+        const res = await fetch('/api/samples');
+        const data = await res.json();
+
+        const spamContainer = document.getElementById('spam-chips-container');
+        const hamContainer = document.getElementById('ham-chips-container');
+
+        spamContainer.innerHTML = '';
+        hamContainer.innerHTML = '';
+
+        for (const [label, text] of Object.entries(data.spam)) {
+          const btn = document.createElement('button');
+          btn.className = 'glass-pill px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-300 hover:text-white hover:border-rose-500/40 hover:bg-rose-500/10 transition-all text-left flex items-center gap-1.5';
+          btn.innerHTML = `<span>${label}</span>`;
+          btn.onclick = () => fillSample(text);
+          spamContainer.appendChild(btn);
+        }
+
+        for (const [label, text] of Object.entries(data.ham)) {
+          const btn = document.createElement('button');
+          btn.className = 'glass-pill px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-300 hover:text-white hover:border-emerald-500/40 hover:bg-emerald-500/10 transition-all text-left flex items-center gap-1.5';
+          btn.innerHTML = `<span>${label}</span>`;
+          btn.onclick = () => fillSample(text);
+          hamContainer.appendChild(btn);
+        }
+      } catch (err) {
+        console.error("Lỗi nạp mẫu thử:", err);
+      }
+    }
+
+    function fillSample(text) {
+      const textarea = document.getElementById('email-input');
+      textarea.value = text;
+      updateCharCounter();
+      triggerPrediction();
+    }
+
+    function clearInput() {
+      const textarea = document.getElementById('email-input');
+      textarea.value = '';
+      updateCharCounter();
+      resetVerdict();
+    }
+
+    function updateCharCounter() {
+      const val = document.getElementById('email-input').value;
+      document.getElementById('char-counter').innerText = `${val.length} ký tự`;
+    }
+
+    // ==================== REAL-TIME & DEBOUNCED PREDICTION ====================
+    document.getElementById('email-input').addEventListener('input', () => {
+      updateCharCounter();
+      clearTimeout(debounceTimer);
+      const text = document.getElementById('email-input').value.trim();
+
+      if (!text) {
+        resetVerdict();
+        return;
+      }
+
+      document.getElementById('typing-indicator').classList.remove('hidden');
+      debounceTimer = setTimeout(() => {
+        triggerPrediction();
+      }, 260);
+    });
+
+    async function triggerPrediction() {
+      const text = document.getElementById('email-input').value.trim();
+      if (!text) {
+        resetVerdict();
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+        updateVerdictUI(data);
+      } catch (err) {
+        console.error("Lỗi phân loại email:", err);
+      } finally {
+        document.getElementById('typing-indicator').classList.add('hidden');
+      }
+    }
+
+    function resetVerdict() {
+      const container = document.getElementById('verdict-container');
+      container.className = 'verdict-morph verdict-idle rounded-2xl p-6 min-h-[175px] flex flex-col justify-between';
+
+      document.getElementById('verdict-badge').innerText = 'Trạng Thái Chờ';
+      document.getElementById('verdict-badge').className = 'inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-slate-800 text-slate-400 border border-white/5 mb-2';
+
+      document.getElementById('verdict-title').innerText = 'Chưa có dữ liệu';
+      document.getElementById('verdict-title').className = 'text-xl font-extrabold text-slate-300 tracking-tight';
+
+      document.getElementById('verdict-desc').innerText = 'Nhập nội dung email hoặc chọn một mẫu thử phía trên để hệ thống quét và đưa ra kết luận.';
+      document.getElementById('confidence-box').classList.add('hidden');
+
+      document.getElementById('prob-spam-txt').innerText = '0.0%';
+      document.getElementById('prob-spam-bar').style.width = '0%';
+      document.getElementById('prob-ham-txt').innerText = '0.0%';
+      document.getElementById('prob-ham-bar').style.width = '0%';
+
+      document.getElementById('kw-spam-list').innerHTML = '<div class="text-xs text-slate-500 italic py-3">Chưa có từ khóa nghi vấn.</div>';
+      document.getElementById('kw-ham-list').innerHTML = '<div class="text-xs text-slate-500 italic py-3">Chưa có từ khóa an toàn.</div>';
+      document.getElementById('verdict-dot').className = 'w-2.5 h-2.5 rounded-full bg-slate-600';
+    }
+
+    function updateVerdictUI(data) {
+      const container = document.getElementById('verdict-container');
+      const badge = document.getElementById('verdict-badge');
+      const title = document.getElementById('verdict-title');
+      const desc = document.getElementById('verdict-desc');
+      const dot = document.getElementById('verdict-dot');
+      const confBox = document.getElementById('confidence-box');
+      const confVal = document.getElementById('confidence-val');
+
+      const isSpam = data.prediction === 1;
+      const probSpam = (data.probabilities.Spam * 100).toFixed(1);
+      const probHam = (data.probabilities.Ham * 100).toFixed(1);
+      const conf = (data.confidence * 100).toFixed(1);
+
+      confBox.classList.remove('hidden');
+      confVal.innerText = `${conf}%`;
+
+      if (isSpam) {
+        container.className = 'verdict-morph verdict-spam rounded-2xl p-6 min-h-[175px] flex flex-col justify-between';
+        badge.innerText = 'Phát Hiện Nguy Hiểm';
+        badge.className = 'inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-rose-500/20 text-rose-400 border border-rose-500/40 mb-2';
+        title.innerText = '🚨 PHÁT HIỆN EMAIL SPAM / LỪA ĐẢO';
+        title.className = 'text-xl font-extrabold text-rose-300 tracking-tight';
+        desc.innerText = 'Nội dung chứa dấu hiệu lừa đảo, giả mạo mạo danh hoặc quảng cáo rác độc hại.';
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping';
+      } else {
+        container.className = 'verdict-morph verdict-ham rounded-2xl p-6 min-h-[175px] flex flex-col justify-between';
+        badge.innerText = 'An Toàn / Tin Cậy';
+        badge.className = 'inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 mb-2';
+        title.innerText = '✅ EMAIL HỢP LỆ (HAM) AN TOÀN';
+        title.className = 'text-xl font-extrabold text-emerald-300 tracking-tight';
+        desc.innerText = 'Nội dung thư hợp thức bình thường, không phát hiện dấu hiệu lừa đảo độc hại.';
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#10B981]';
+      }
+
+      // Update Probability Bars
+      document.getElementById('prob-spam-txt').innerText = `${probSpam}%`;
+      document.getElementById('prob-spam-bar').style.width = `${Math.min(Math.max(probSpam, 2), 100)}%`;
+
+      document.getElementById('prob-ham-txt').innerText = `${probHam}%`;
+      document.getElementById('prob-ham-bar').style.width = `${Math.min(Math.max(probHam, 2), 100)}%`;
+
+      // Update Feature Explanation
+      renderKeywordsList(data.explanation || []);
+    }
+
+    function renderKeywordsList(keywords) {
+      const spamList = document.getElementById('kw-spam-list');
+      const hamList = document.getElementById('kw-ham-list');
+
+      const spamWords = keywords.filter(k => k.tendency === 'Spam');
+      const hamWords = keywords.filter(k => k.tendency === 'Ham');
+
+      if (spamWords.length === 0) {
+        spamList.innerHTML = '<div class="text-xs text-slate-500 italic py-2">Không có từ khóa nghi vấn nổi bật.</div>';
+      } else {
+        spamList.innerHTML = spamWords.map(k => `
+          <div class="flex items-center justify-between p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs">
+            <span class="font-medium text-rose-200">${k.word}</span>
+            <div class="flex items-center gap-2">
+              <div class="w-16 h-1.5 rounded-full bg-slate-900 overflow-hidden">
+                <div class="h-full bg-rose-500 rounded-full" style="width: ${Math.min(Math.max(Math.abs(k.score) * 100, 10), 100)}%"></div>
+              </div>
+              <span class="font-mono text-rose-300 font-bold">+${k.score.toFixed(2)}</span>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      if (hamWords.length === 0) {
+        hamList.innerHTML = '<div class="text-xs text-slate-500 italic py-2">Không có từ khóa an toàn nổi bật.</div>';
+      } else {
+        hamList.innerHTML = hamWords.map(k => `
+          <div class="flex items-center justify-between p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs">
+            <span class="font-medium text-emerald-200">${k.word}</span>
+            <div class="flex items-center gap-2">
+              <div class="w-16 h-1.5 rounded-full bg-slate-900 overflow-hidden">
+                <div class="h-full bg-emerald-500 rounded-full" style="width: ${Math.min(Math.max(Math.abs(k.score) * 100, 10), 100)}%"></div>
+              </div>
+              <span class="font-mono text-emerald-300 font-bold">${k.score.toFixed(2)}</span>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    // ==================== TAB 2: METRICS & PLOTLY CHARTS ====================
+    async function fetchMetrics() {
+      try {
+        const res = await fetch('/api/metrics');
+        cachedMetrics = await res.json();
+
+        // Fill KPIs
+        document.getElementById('kpi-acc').innerText = `${(cachedMetrics.test.accuracy * 100).toFixed(1)}%`;
+        document.getElementById('kpi-prec').innerText = `${(cachedMetrics.test.precision * 100).toFixed(1)}%`;
+        document.getElementById('kpi-rec').innerText = `${(cachedMetrics.test.recall * 100).toFixed(1)}%`;
+        document.getElementById('kpi-f1').innerText = `${(cachedMetrics.test.f1 * 100).toFixed(1)}%`;
+
+        document.getElementById('classification-report-text').innerText = cachedMetrics.test.classification_report;
+
+        renderAnalyticsCharts(cachedMetrics);
+        loadRandomTests();
+      } catch (err) {
+        console.error("Lỗi lấy chỉ số metrics:", err);
+      }
+    }
+
+    function renderAnalyticsCharts(data) {
+      const darkLayout = {
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        font: { family: 'Plus Jakarta Sans, sans-serif', color: '#94A3B8' },
+        margin: { l: 40, r: 20, t: 30, b: 35 }
+      };
+
+      // 1. Confusion Matrix Heatmap
+      const cm = data.test.confusion_matrix;
+      const xLabels = ['Dự đoán Hợp lệ (0)', 'Dự đoán Spam (1)'];
+      const yLabels = ['Thực tế Hợp lệ (0)', 'Thực tế Spam (1)'];
+      const annotations = [
+        [
+          { text: `<b>TN (Đúng Hợp lệ)</b><br><span style="font-size:15px; font-family:JetBrains Mono;">${cm[0][0]}</span> mẫu`, x: xLabels[0], y: yLabels[0] },
+          { text: `<b>FP (Nhầm Spam)</b><br><span style="font-size:15px; font-family:JetBrains Mono;">${cm[0][1]}</span> mẫu`, x: xLabels[1], y: yLabels[0] }
+        ],
+        [
+          { text: `<b>FN (Sót Spam)</b><br><span style="font-size:15px; font-family:JetBrains Mono;">${cm[1][0]}</span> mẫu`, x: xLabels[0], y: yLabels[1] },
+          { text: `<b>TP (Bắt đúng Spam)</b><br><span style="font-size:15px; font-family:JetBrains Mono;">${cm[1][1]}</span> mẫu`, x: xLabels[1], y: yLabels[1] }
+        ]
+      ];
+
+      const annotList = [];
+      for (let i = 0; i < 2; i++) {
+        for (let j = 0; j < 2; j++) {
+          annotList.push({
+            x: annotations[i][j].x,
+            y: annotations[i][j].y,
+            text: annotations[i][j].text,
+            showarrow: false,
+            font: { size: 12, color: cm[i][j] > 200 ? '#FFFFFF' : '#E2E8F0' }
+          });
+        }
+      }
+
+      Plotly.newPlot('chart-confusion-matrix', [{
+        z: cm,
+        x: xLabels,
+        y: yLabels,
+        type: 'heatmap',
+        colorscale: [
+          [0, 'rgba(30, 27, 75, 0.4)'],
+          [0.5, 'rgba(79, 70, 229, 0.6)'],
+          [1, 'rgba(99, 102, 241, 0.95)']
+        ],
+        showscale: false
+      }], {
+        ...darkLayout,
+        annotations: annotList,
+        xaxis: { tickfont: { size: 11, color: '#CBD5E1' } },
+        yaxis: { tickfont: { size: 11, color: '#CBD5E1' } }
+      }, { responsive: true, displayModeBar: false });
+
+      // 2. Metrics Bar Chart
+      const mNames = ['Accuracy', 'Precision', 'Recall', 'F1-Score'];
+      const mVals = [
+        data.test.accuracy * 100,
+        data.test.precision * 100,
+        data.test.recall * 100,
+        data.test.f1 * 100
+      ];
+      Plotly.newPlot('chart-metrics-bars', [{
+        x: mNames,
+        y: mVals,
+        type: 'bar',
+        text: mVals.map(v => `<b>${v.toFixed(1)}%</b>`),
+        textposition: 'outside',
+        textfont: { family: 'JetBrains Mono', color: '#F1F5F9', size: 12 },
+        marker: {
+          color: ['#6366F1', '#06B6D4', '#10B981', '#F43F5E'],
+          cornerradius: 6
+        }
+      }], {
+        ...darkLayout,
+        yaxis: { range: [0, 115], gridcolor: 'rgba(255,255,255,0.06)', tickfont: { size: 10 } },
+        xaxis: { tickfont: { size: 11, color: '#CBD5E1' } }
+      }, { responsive: true, displayModeBar: false });
+
+      // 3. Top Keywords Diverging Horizontal Bars
+      const spamWords = data.top_keywords.spam.slice(0, 7).reverse();
+      const hamWords = data.top_keywords.ham.slice(0, 7).reverse();
+
+      Plotly.newPlot('chart-top-keywords', [
+        {
+          name: 'Kéo về SPAM (+)',
+          y: spamWords.map(w => w.word),
+          x: spamWords.map(w => w.score),
+          type: 'bar',
+          orientation: 'h',
+          marker: { color: '#F43F5E', cornerradius: 4 },
+          text: spamWords.map(w => `+${w.score.toFixed(2)}`),
+          textposition: 'outside',
+          textfont: { size: 10, color: '#FDA4AF', family: 'JetBrains Mono' }
+        },
+        {
+          name: 'Kéo về HỢP LỆ (-)',
+          y: hamWords.map(w => w.word),
+          x: hamWords.map(w => -w.score),
+          type: 'bar',
+          orientation: 'h',
+          marker: { color: '#10B981', cornerradius: 4 },
+          text: hamWords.map(w => `-${w.score.toFixed(2)}`),
+          textposition: 'outside',
+          textfont: { size: 10, color: '#6EE7B7', family: 'JetBrains Mono' }
+        }
+      ], {
+        ...darkLayout,
+        barmode: 'group',
+        margin: { l: 70, r: 40, t: 20, b: 35 },
+        xaxis: { title: 'Hệ số Log-Odds', gridcolor: 'rgba(255,255,255,0.06)' },
+        yaxis: { tickfont: { size: 11, color: '#E2E8F0' } },
+        legend: { orientation: 'h', y: 1.15, x: 0, font: { size: 11, color: '#94A3B8' } }
+      }, { responsive: true, displayModeBar: false });
+
+      // 4. Stratified Split Grouped Bar
+      const splits = data.splits;
+      Plotly.newPlot('chart-splits', [
+        {
+          name: 'Hợp lệ (Ham)',
+          x: ['Train (70%)', 'Val (15%)', 'Test (15%)'],
+          y: [splits.train.ham, splits.val.ham, splits.test.ham],
+          type: 'bar',
+          marker: { color: '#10B981', cornerradius: 5 },
+          text: [splits.train.ham, splits.val.ham, splits.test.ham].map(v => v.toLocaleString()),
+          textposition: 'outside',
+          textfont: { size: 10, color: '#A7F3D0', family: 'JetBrains Mono' }
+        },
+        {
+          name: 'Spam / Thư rác',
+          x: ['Train (70%)', 'Val (15%)', 'Test (15%)'],
+          y: [splits.train.spam, splits.val.spam, splits.test.spam],
+          type: 'bar',
+          marker: { color: '#F43F5E', cornerradius: 5 },
+          text: [splits.train.spam, splits.val.spam, splits.test.spam].map(v => v.toLocaleString()),
+          textposition: 'outside',
+          textfont: { size: 10, color: '#FECDD3', family: 'JetBrains Mono' }
+        }
+      ], {
+        ...darkLayout,
+        barmode: 'group',
+        margin: { l: 45, r: 20, t: 25, b: 35 },
+        yaxis: { gridcolor: 'rgba(255,255,255,0.06)' },
+        legend: { orientation: 'h', y: 1.15, x: 0, font: { size: 11, color: '#94A3B8' } }
+      }, { responsive: true, displayModeBar: false });
+    }
+
+    // ==================== RANDOM 10 TEST SET VALIDATOR ====================
+    async function loadRandomTests() {
+      const tbody = document.getElementById('random-tests-tbody');
+      tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-500">Đang chọn ngẫu nhiên 10 mẫu từ test.csv...</td></tr>';
+
+      try {
+        const res = await fetch('/api/random-tests?n=10');
+        const data = await res.json();
+
+        tbody.innerHTML = data.samples.map(s => `
+          <tr class="hover:bg-white/[0.02] transition-colors">
+            <td class="py-2.5 px-4 text-slate-300 font-sans" title="${s.full_text.replace(/"/g, '&quot;')}">${s.text}</td>
+            <td class="py-2.5 px-3 text-center">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${s.actual === 1 ? 'bg-rose-500/15 text-rose-300 border border-rose-500/25' : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/25'}">
+                ${s.actual_label}
+              </span>
+            </td>
+            <td class="py-2.5 px-3 text-center">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${s.predicted === 1 ? 'bg-rose-500/15 text-rose-300 border border-rose-500/25' : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/25'}">
+                ${s.predicted_label}
+              </span>
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono text-slate-300 font-semibold">${(s.confidence * 100).toFixed(1)}%</td>
+            <td class="py-2.5 px-3 text-center">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${s.is_correct ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'}">
+                ${s.is_correct ? '✓ Đúng' : '✗ Sai'}
+              </span>
+            </td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-rose-400">Không thể tải mẫu thử ngẫu nhiên.</td></tr>';
+      }
+    }
+
+    // ==================== APP INITIALIZATION ====================
+    window.addEventListener('DOMContentLoaded', () => {
+      loadSamples();
+      fetchMetrics();
+    });
+  </script>
+</body>
+</html>
